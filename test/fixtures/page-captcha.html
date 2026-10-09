@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Проверка безопасности</title>
+</head>
+<body>
+  <h1>Подтвердите, что вы не робот</h1>
+  <p>Мы заметили необычную активность с вашего IP-адреса. Введите символы с картинки.</p>
+  <form action="/captcha" method="post">
+    <img src="/captcha/image" alt="captcha">
+    <input type="text" name="captcha">
+    <button type="submit">Отправить</button>
+  </form>
+</body>
+</html>

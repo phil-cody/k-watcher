@@ -1,0 +1,14 @@
+# Секреты и локальное состояние — не коммитить
+.env
+.env.*
+!.env.example
+data/
+logs/
+node_modules/
+*.log
+
+# Локальные правки конфигурации поверх шаблона
+config/local.*.json
+
+# macOS
+.DS_Store

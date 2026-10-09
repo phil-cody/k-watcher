@@ -1,0 +1,781 @@
+{
+  "meta": {
+    "language": "ru",
+    "note": "ВСЕ тексты интерфейса в одном месте: сообщения Telegram, логи, вывод CLI, подписи и формулировки анализа. Здесь можно править формулировки, не трогая код. Плейсхолдеры вида {name} подставляются из кода — не удаляйте их и не переименовывайте. Если плейсхолдер пропадёт, тест «тексты содержат все плейсхолдеры» это поймает.",
+    "howToOverride": "Чтобы не трогать этот файл: создайте config/texts.local.json с теми же ключами (можно частично) и укажите TEXTS_FILE=config/texts.local.json в .env. Значения из локального файла переопределят эти.",
+    "placeholders": {
+      "verdict": "подходит | возможно | не подходит | нужно уточнить",
+      "conclusion": "то же, что verdict, но в форме существительного для заголовка",
+      "interval": "строка вида «240–600»",
+      "source": "URL источника",
+      "reason": "код причины",
+      "title": "заголовок задания",
+      "text": "готовый текст",
+      "count": "число",
+      "seconds": "число секунд",
+      "date": "дата/время строкой"
+    },
+    "availableData": {
+      "clientOffers": "extra.offersCount — сколько предложений (откликов) уже подано к заданию",
+      "clientOrders": "extra.kworkCount — сколько заказов этот заказчик оформил (у кого-либо)",
+      "clientViews": "extra.views — сколько просмотров у задания",
+      "clientTimeLeft": "extra.timeLeft — сколько осталось до истечения",
+      "clientMaxDays": "extra.maxDays — срок в днях, указанный заказчиком"
+    },
+    "textScope": {
+      "fromTexts": "Сообщения Telegram, логи, вывод CLI, план опроса, команды, подписи и формулировки анализа, черновик отклика, страница dashboard, предупреждения парсера, промпт и логи модели.",
+      "keptInCode": "Только диагностика конфигурации и самого файла текстов (сообщения валидации config/профиля) — они нужны разработчику и тестам, меняются вместе с кодом валидации."
+    }
+  },
+  "telegram": {
+    "valueMissing": "— не указано",
+    "dateUnknownSuffix": " (точное время не определено)",
+    "newJobHeader": "🔔 <b>Новое задание Kwork</b>",
+    "recommendation": "Рекомендация",
+    "recommendationPreliminary": " (предварительно)",
+    "sections": {
+      "facts": "📌 <b>Факты из карточки</b>",
+      "verdict": "🧭 <b>Вывод</b>",
+      "verdictPreliminaryNote": " (предварительная оценка: профиль заполнен не полностью)",
+      "risks": "⚠️ <b>Риски</b>",
+      "unknown": "❓ <b>Неизвестно</b>",
+      "pricing": "💰 <b>Предварительные условия</b>",
+      "questions": "📝 <b>Вопросы заказчику</b>",
+      "draft": "✍️ <b>Черновик отклика</b> (только для ручной проверки, на Kwork не отправлен)",
+      "draftAssumptions": "<b>Допущения черновика:</b>"
+    },
+    "labels": {
+      "title": "Заголовок",
+      "url": "Ссылка",
+      "budget": "Бюджет",
+      "date": "Дата",
+      "categoryKwork": "Категория Kwork",
+      "categoryBot": "Категория бота",
+      "categoryId": "id {id}",
+      "client": "Заказчик",
+      "clientOffers": " (предложений к заданию: {count})",
+      "clientOrders": " (заказов у заказчика: {count})",
+      "descriptionFromList": "Описание (из списка, страница задания не открывалась)",
+      "description": "Описание",
+      "descriptionAbsent": "отсутствует в карточке списка",
+      "missingFields": "Нет в карточке",
+      "price": "Цена",
+      "deadline": "Срок",
+      "priceSuspicious": "Признак заниженной цены",
+      "estimateIncomplete": "Оценка неполная: часть данных профиля отсутствует, значения будут уточнены.",
+      "noRisks": "Явных рисков по карточке не выявлено (это не гарантия).",
+      "noReasons": "Оснований для уверенного вывода нет.",
+      "reasonPlus": "<u>плюс</u>",
+      "reasonMinus": "<u>минус</u>",
+      "reasonModel": "модель",
+      "riskEvidence": "«{evidence}»"
+    },
+    "texts": {
+      "jobWithoutTitle": "Задание без заголовка",
+      "unknownDueToMissing": "В профиле не заполнено: {fields}.",
+      "explicitlyExcluded": "В задании прямо сказано, что «{phrase}» не требуется: это снижает риск, а не повышает."
+    }
+  },
+  "source": {
+    "networkError": "Сетевая ошибка при получении {url}: {reason}",
+    "timeout": "таймаут",
+    "http429": "HTTP 429: сайт ограничил частоту запросов{retryAfter}. Опрос остановлен, повторов не будет.",
+    "http429RetryAfter": " (Retry-After: {seconds} с)",
+    "http403": "HTTP 403: доступ запрещён. Опрос остановлен.",
+    "http401": "HTTP {status}: требуется авторизация, работа без неё не предусмотрена. Опрос остановлен.",
+    "httpUnavailable": "HTTP {status}: сервис недоступен.",
+    "httpUnexpected": "HTTP {status}: неожиданный ответ источника.",
+    "anomaly": "Обнаружена защита или блокировка ({kind}: {reason}). Опрос остановлен, повторные попытки не выполняются.",
+    "urlNotAllowed": "URL не входит в разрешённый список: {errors}",
+    "urlNotDeclared": "URL отсутствует в source.allowedUrls: {url}",
+    "parallelDenied": "Попытка параллельного запроса отклонена: разрешён только один запрос за раз."
+  },
+  "scheduler": {
+    "intervalChooseFailed": "Диапазон интервала должен быть числом",
+    "intervalInvalidOrder": "minIntervalSeconds не может быть больше maxIntervalSeconds",
+    "outsideWindow": "Вне окна {start}–{end} ({timezone}): новый запрос не начинаем до следующего дня.",
+    "awaitWindow": "До открытия окна {start}–{end} ({timezone}).",
+    "firstRequestNoDelay": "Первый запрос после старта: пауза не требуется.",
+    "firstRequestAfterLongGap": "Первый запрос в этом процессе, с прошлого запроса прошло {seconds} с — пауза не требуется.",
+    "pauseWouldExceedWindow": "Пауза {seconds} с вывела бы запрос за {end} ({timezone}); опрос останавливается до следующего дня.",
+    "restartMinInterval": "После перезапуска выдерживаем минимальный интервал: ждать ещё {seconds} с с момента последнего запроса.",
+    "restartGapExceedsWindow": "Выдержка {seconds} с вывела бы запрос за {end} ({timezone}).",
+    "pausedByUser": "Опрос приостановлен: {reason}.",
+    "networkErrorsStop": "Сетевые ошибки повторились {count} раз подряд. Опрос приостановлен без ускоренных повторов: {reason}",
+    "structureChangedStop": "Разметка страницы не разбирается {count} раза подряд. Опрос приостановлен, данные не выдумывались.",
+    "statusLine": "Статус: {status}",
+    "statusPausedByUser": "пауза по команде пользователя",
+    "statusStopReason": "причина: {reason}",
+    "statusRequestCount": "Запросов с запуска: {count}",
+    "statusWindow": "Окно: {window} ({timezone})",
+    "statusInterval": "Интервал: {min}–{max} с (случайный)",
+    "statusLastRequest": "Последний запрос: {date}",
+    "statusNextRequest": "Следующий запрос не раньше: {date}",
+    "statusLastError": "Последняя ошибка: {message}",
+    "pausedUserReason": "по команде пользователя",
+    "pausedUserShort": "Опрос приостановлен пользователем."
+  },
+  "logs": {
+    "cycleSummary": "Цикл завершён: запросов {requests}, карточек {cards}, новых {newJobs}, повторов {duplicates}, удалено устаревших {pruned}, всего задач {active}{pending}{warnings}{errors}{perSource}",
+    "cycleSummaryPending": ", ждут отправки {count}",
+    "cycleSummaryErrors": ", ошибок {count}",
+    "cycleSummaryPerSource": " | {sources}",
+    "sourceShortAll": "все",
+    "sourceShortCategory": "c={id}",
+    "sourceShortPage": ", стр.{page}",
+    "sourceShortCards": "карточек {cards}",
+    "sourceShortPages": " (страниц {pages})",
+    "indexPruned": "Индекс очищен: удалено задач {removed} | активных задач {active}",
+    "pauseBeforeRequest": "Случайная пауза перед запросом",
+    "firstRequestNow": "Первый запрос после старта: пауза не требуется",
+    "awaitingWindow": "Ожидание открытия окна опроса",
+    "windowClosed": "Окно опроса закрыто",
+    "noCardsInPage": "Страница пуста — пагинация по этому URL остановлена",
+    "noCardsAtAll": "Карточки не найдены: возможна смена разметки или пустая выдача",
+    "structureBroken": "Страница {url}: ни одной карточки не разобрано ({details})",
+    "noDetails": "без пояснений",
+    "duplicateSkipped": "Повторная карточка пропущена",
+    "sendFailedQueued": "Отправка уведомления не удалась: задание поставлено в очередь",
+    "pendingLeft": "Часть уведомлений остаётся в очереди до следующего цикла",
+    "sendStopFailed": "Не удалось сообщить пользователю об остановке",
+    "retrySendFailed": "Повторная отправка задания {jobId} не удалась: {reason}",
+    "sendFailed": "Не удалось отправить уведомление по заданию {jobId}: {reason}",
+    "parserNote": "Замечание парсера",
+    "stop": "Опрос остановлен",
+    "restoredLastRequest": "Восстановлено время последнего запроса: после перезапуска выдерживается минимальный интервал",
+    "startupCancelled": "Запуск отменён: конфигурация не готова к живому опросу.",
+    "startupMode": "Запуск режима {mode}",
+    "notificationsOn": "включены",
+    "notificationsOff": "выключены",
+    "dashboardAvailable": "Dashboard доступен только локально: {url}",
+    "dashboardStopping": "Останавливаем dashboard",
+    "botStopping": "Бот останавливается",
+    "stoppingOnSignal": "Получен сигнал {signal}: останавливаемся",
+    "telegramPollError": "Ошибка приёма команд Telegram: повтор через паузу",
+    "telegramConflict": "Тот же токен бота уже опрашивается другим процессом. Остановите другие копии бота (или второй компьютер), иначе Telegram будет отдавать обновления только одной из них.",
+    "foreignMessage": "Сообщение от постороннего пользователя проигнорировано",
+    "messageWithoutCommand": "Сообщение без команды проигнорировано",
+    "chatIdUnknownPoll": "Неизвестен Telegram chat id. Отправьте боту /start (режим bot) один раз или задайте TELEGRAM_CHAT_ID.",
+    "modelUnavailable": "Модель настроена, но недоступна: анализ остаётся на эвристике.",
+    "modelBadJson": "Ответ модели не разобран как JSON: дополнение пропущено.",
+    "modelCallFailed": "Вызов модели не удался: анализ продолжается на эвристике.",
+    "telegramApiError": "Telegram {method} не выполнен: {description}",
+    "telegramNetworkError": "Сеть недоступна для Telegram, повтор через паузу",
+    "telegramChatUnknown": "Неизвестен chat id: сначала отправьте боту /start.",
+    "schedulerResumed": "Опрос возобновлён",
+    "schedulerPaused": "Опрос приостановлен",
+    "dashboardPublicWarning": "ВНИМАНИЕ: dashboard слушает {host} — он не защищён паролем и отдаёт состояние бота, описания заданий и логи. Не открывайте его в интернет.",
+    "dashboardReadOnly": "Dashboard отдаёт состояние бота и не имеет записи: изменить настройки через него нельзя.",
+    "windowOpened": "Окно опроса открылось",
+    "windowClosedBoundary": "Окно опроса закрылось",
+    "windowNotifyFailed": "Не удалось отправить уведомление о границе окна",
+    "windowNotifyNoChat": "chat id ещё неизвестен: уведомления о границах окна не отправлены. Отправьте боту /start или задайте TELEGRAM_CHAT_ID.",
+    "cycleSummaryWarnings": ", предупреждений {count}",
+    "cycleWarning": "Предупреждение цикла",
+    "cycleError": "Ошибка цикла",
+    "noErrors": "Ошибок в цикле нет",
+    "telegramCommandsPublished": "Команды бота опубликованы в Telegram: {count}",
+    "telegramCommandsFailed": "Не удалось опубликовать список команд в Telegram (команды работают, но не видны в меню)",
+    "chatIdUnknownBotStart": "Chat id ещё неизвестен. Отправьте боту /start в личном чате — после этого он запомнит чат и начнёт присылать уведомления. До этого цикла опроса не будет.",
+    "telegramOwnerCommandsPublished": "Команды владельца опубликованы: {count}",
+    "telegramCommandsUnchanged": "Команды не изменились: публикация не нужна ({count} команд в меню)",
+    "jobSkippedNoProfile": "Задание пропущено для пользователя без профиля",
+    "profileUploaded": "Пользователь загрузил профиль",
+    "profileUploadRejected": "Профиль отклонён при загрузке",
+    "profileReminderSent": "Отправлено напоминание о профиле",
+    "jobSkippedByCategory": "Задание пропущено: не входит в категории пользователя",
+    "categoriesSaved": "Пользователь выбрал категории",
+    "categoriesReset": "Пользователь сбросил персональные категории"
+  },
+  "analysis": {
+    "verdicts": {
+      "подходит": "подходит",
+      "возможно": "возможно",
+      "не подходит": "не подходит",
+      "нужно уточнить": "нужно уточнить"
+    },
+    "conclusions": {
+      "подходит": "рекомендую откликнуться",
+      "возможно": "стоит рассмотреть",
+      "не подходит": "не рекомендую",
+      "нужно уточнить": "нужны уточнения"
+    },
+    "riskMessages": {
+      "budget_below_minimum": "Бюджет ниже вашей минимальной цены.",
+      "budget_absent": "Бюджет не указан в карточке.",
+      "budget_not_fixed": "Бюджет выражен в {currency}.",
+      "excluded_work": "В задании есть признаки нежелательных работ: {phrases}.",
+      "excluded_work_profile": "Задание пересекается с исключениями профиля: {phrases}.",
+      "backend_requested": "В задании запрошены серверные работы или API — это вне специализации профиля.",
+      "cms_mentioned": "Упоминается CMS: нужно уточнить, кто отвечает за интеграцию вёрстки.",
+      "urgent": "В задании есть признаки срочности.",
+      "no_layout": "В карточке нет упоминания макетов Figma/PSD: объём работ не определён.",
+      "vague_scope": "Задача сформулирована как доработка без точного перечня правок.",
+      "dedup_composite_key": "Нет стабильного id и ссылки: возможен ложный дубликат с другой карточкой.",
+      "out_of_target_categories": "Задание не удалось отнести к выбранным категориям по тексту карточки — проверьте вручную.",
+      "missing_fields": "В карточке нет полей: {fields}.",
+      "explicitly_excluded": "В задании прямо сказано, что «{phrase}» не требуется: это снижает риск, а не повышает.",
+      "structure_shortfall": "Источник {url}: в выдаче заявлено {declared} заданий, забрано {fetched}{hint}"
+    },
+    "structureShortfallHints": {
+      "limitReached": " — достигнут предел source.pagination.maxPagesPerUrl={limit}, увеличьте его для полного прохода.",
+      "unknown": " — возможно, часть заданий на следующих страницах."
+    },
+    "budgetNotes": {
+      "absent": "Бюджет не указан в карточке: нельзя судить о заниженной цене.",
+      "foreignCurrency": "Валюта бюджета — {currency}; сравнение с ценами профиля в RUB не выполняется.",
+      "noMinimum": "В профиле не задана минимальная цена: признак заниженной цены не оценивается.",
+      "belowMaximum": "Верхняя граница бюджета {max} ₽ ниже минимальной цены профиля {minimum} ₽.",
+      "belowMinimum": "Нижняя граница бюджета {min} ₽ ниже минимальной цены профиля {minimum} ₽.",
+      "belowService": "Бюджет ниже стартовой цены подтверждённой услуги профиля ({price} ₽): «{service}».",
+      "fromPrice": "Указана цена «от»: итоговая стоимость зависит от объёма работ."
+    },
+    "unknown": {
+      "descriptionFromListOnly": "Описание взято только из карточки списка; страница задания не запрашивалась (вне разрешённого объёма).",
+      "descriptionAbsent": "Описание в карточке отсутствует.",
+      "dateRelative": "Дата публикации известна только как «{text}» — точное время не определено.",
+      "dateAbsent": "Дата публикации в карточке не найдена.",
+      "clientAbsent": "Заказчик и его история в карточке не указаны.",
+      "availabilityUnknown": "Доступность исполнителя не задана в профиле.",
+      "deadlineUnknown": "Желаемый срок в профиле не задан.",
+      "profileIncomplete": "В профиле не заполнено: {fields}.",
+      "explicitlyExcluded": "Задание явно исключает часть работ ({phrases}), но формулировку стоит подтвердить у заказчика."
+    },
+    "assumptions": {
+      "scopeFromListOnly": "Объём работ оценивается только по тексту карточки; страница задания не запрашивалась.",
+      "descriptionAbsent": "Описание в карточке отсутствует, поэтому состав работ предполагается по заголовку.",
+      "dateDerived": "Относительная дата публикации пересчитана от времени разбора и может быть неточной.",
+      "profileIncomplete": "Часть полей профиля не заполнена: оценка предварительная."
+    },
+    "estimate": {
+      "known": "Ориентир по профилю: около {days} дн. при согласованном объёме.",
+      "unknown": "Срок не оценивается: в профиле не задан желаемый срок (availability.preferred_deadline_days)."
+    },
+    "pricing": {
+      "known": "Предварительно: от {minimum} ₽ (minimum_project_price профиля). Точная цена — после уточнения объёма.",
+      "unknown": "Цена не оценивается: в профиле не задана минимальная цена."
+    },
+    "factsSource": {
+      "card": "карточка задания (список)",
+      "urlFromCard": "ссылка из карточки (страница не запрашивалась)",
+      "absent": "отсутствует",
+      "unknown": "не определено"
+    },
+    "summary": {
+      "titleKnown": "«{title}»: {budget}.",
+      "titleUnknown": "Без заголовка: {budget}.",
+      "budgetKnown": "бюджет {text}",
+      "budgetUnknown": "бюджет не указан",
+      "recommendation": "Рекомендация: {conclusion}.",
+      "positive": "Совпадения с профилем: {phrases}.",
+      "risks": "Настораживает: {codes}."
+    },
+    "questions": {
+      "noLayout": "Есть ли готовый макет (Figma/PSD) или только описание и прототип?",
+      "layout": "В каком виде передаёте макет и есть ли мобильная версия макета?",
+      "pages": "Сколько страниц и уникальных блоков нужно сверстать?",
+      "edits": "Какие именно правки нужны и на каких разрешениях проверяли проблему?",
+      "cmsOwner": "Кто отвечает за подключение вёрстки к CMS и настройку плагинов?",
+      "backendScope": "Нужна ли серверная часть или интеграции с API, или только frontend-часть?",
+      "budgetAbsent": "Какой бюджет закладываете на эту задачу?",
+      "budgetRange": "От чего зависит итоговая стоимость в указанном диапазоне?"
+    },
+    "verdictLabels": {
+      "подходит": "подходит",
+      "возможно": "возможно",
+      "не подходит": "не подходит",
+      "нужно уточнить": "нужно уточнить"
+    },
+    "emptyProfileWarning": "профиль отсутствует",
+    "sources": {
+      "factsCard": "карточка задания (список)",
+      "inferencesHeuristic": "выводы приложения (эвристика)",
+      "inferencesWithModel": "выводы приложения + модель {provider}"
+    }
+  },
+  "proposal": {
+    "greetings": {
+      "professional_friendly": "Здравствуйте!",
+      "professional": "Здравствуйте.",
+      "friendly": "Привет!"
+    },
+    "assumptions": {
+      "noDescription": "Состав работ в задании не детализирован — формулировка объёма будет уточнена после ответа заказчика.",
+      "deadlineUnknown": "Срок не указан: в профиле не заполнено availability.preferred_deadline_days.",
+      "priceUnknown": "Цена не указана: в профиле не заполнено pricing.minimum_project_price.",
+      "noPortfolio": "Портфолио не упоминается: в профиле нет подтверждённых работ.",
+      "portfolioNoMatch": "Портфолио не упоминается: ни одна работа не совпала с текстом задания.",
+      "services": "Услуги, на которые можно ссылаться: {services}."
+    },
+    "acknowledge": {
+      "viewedLayout": "Макет посмотрел.",
+      "viewedReference": "Ознакомился с референсом.",
+      "attachmentsOnly": "Материалы, приложенные к заданию, посмотрел.",
+      "byRequest": "Готов выполнить — пришлите, пожалуйста, ссылку на макет.",
+      "unknown": "По описанию задача понятна.",
+      "noMaterials": "По описанию задача понятна."
+    },
+    "ready": {
+      "default": "Готов выполнить работу.",
+      "withLayout": "Готов выполнить адаптивную вёрстку по вашему макету.",
+      "design": "Готов разработать проект по вашему описанию и материалам.",
+      "reference": "Готов выполнить проект с ориентиром на указанный референс."
+    },
+    "scopeHeading": "Что сделаю:",
+    "sectionsLine": "Объём: {count} — вёрстка адаптивная, с проверкой на компьютерах, планшетах и телефонах.",
+    "componentsHeading": "Отдельно реализую:",
+    "materialsHeading": "Уточните, пожалуйста:",
+    "exclusions": {
+      "backend": "Без backend, API и серверной логики.",
+      "cms": "Вёрстку подготовлю к интеграции; подключение к CMS — на стороне заказчика, если не договоримся отдельно.",
+      "default": "Без backend, интеграций с CMS и внешними API — это не входит в мою услугу."
+    },
+    "stackLine": "Стек: {stack}.",
+    "cta": {
+      "default": "Готов приступить сразу после вашего ответа — напишите, и начнём.",
+      "withQuestions": "Готов приступить сразу после ваших ответов — напишите, и начнём.",
+      "solo": "Готов приступить сразу — если состав работ подтверждаете, начинаю."
+    },
+    "materialsQuestions": {
+      "noLayout": "Есть ли готовый макет в Figma или PSD?",
+      "mobile": "Нужен ли мобильный вариант, или ориентируемся на представленные макеты?",
+      "integration": "Нужен результат как самостоятельные HTML/CSS/JS-файлы или интеграция в существующий проект?",
+      "texts": "Кто предоставляет тексты, изображения и логотипы?",
+      "design": "Есть ли исходники логотипа, иконок и фото или макет в Figma?"
+    },
+    "closing": {
+      "withNumbers": "Если формат и состав работ подходят — напишите, начну сразу.",
+      "withoutNumbers": "Если формат подходит — напишите, обсудим детали и я назову точные сроки и стоимость."
+    },
+    "footer": "Черновик для ручной проверки. На Kwork ничего не отправлено.",
+    "scopeItems": {
+      "markup": "адаптивная вёрстка по макету (HTML/CSS/SCSS) с проверкой на компьютерах, планшетах и телефонах",
+      "interactive": "простые интерфейсные интерактивы на JavaScript: меню, табы, модальные окна, слайдеры",
+      "seo": "семантическая структура заголовков и базовая SEO-подготовка (Title, Description, оптимизация изображений)",
+      "fallback": "frontend-часть: вёрстка и адаптация интерфейса по согласованному объёму"
+    },
+    "scopeExtra": "проверка отображения на основных разрешениях и в актуальных браузерах",
+    "sectionsCount": {
+      "one": "Объём: 1 секция контента с адаптивом.",
+      "few": "Объём: {count} секции контента с адаптивом.",
+      "many": "Объём: {count} секций контента с адаптивом."
+    }
+  },
+  "commands": {
+    "start": [
+      "Бот следит за новыми заданиями Kwork в выбранных категориях и присылает оценку и черновик отклика.",
+      "Отклики не отправляются, никаких действий на Kwork бот не выполняет.",
+      "Профиль: {headline}",
+      "Команды: /status — состояние, /pause — пауза, /resume — возобновить, /plan — план опроса, /profile — профиль, /users – список пользователей, /help – справка.",
+      "Текущее состояние: {status}"
+    ],
+    "statusTitle": "Состояние бота:",
+    "statusScheduler": "Опрос: {status}",
+    "statusPausedByUser": "Пауза установлена пользователем (/resume для возобновления).",
+    "statusExplanation": "Пояснение: {text}",
+    "statusStopReason": "Причина остановки: {reason}",
+    "statusRequestCount": "Запросов с запуска: {count}",
+    "statusWindow": "Окно: {window} ({timezone})",
+    "statusInterval": "Интервал: {min}–{max} с (случайный)",
+    "statusLastRequest": "Последний запрос: {date}",
+    "statusNextRequest": "Следующий запрос не раньше: {date}",
+    "statusLastError": "Последняя ошибка: {message}",
+    "statusNoScheduler": "Планировщик не запущен в этом процессе.",
+    "statusActiveJobs": "Актуальных заданий в индексе: {count}",
+    "statusKeys": "Ключей дедупликации: {total} (id {stableId} + url {url} + составных {composite}) — по одному на задание.",
+    "statusLastCycle": "Последний цикл: карточек {cards}, в категориях {inTargets}, новых {newJobs}, повторов {duplicates}, отправлено {sent}",
+    "statusPruned": "Устаревших заданий удалено из индекса: {count}",
+    "statusActiveAfter": "Актуальных заданий после цикла: {count}",
+    "statusModel": "Анализ: {model}",
+    "profileTitle": "Профиль исполнителя:",
+    "profileHeadline": "Заголовок: {headline}",
+    "profileSkills": "Навыки: {skills}",
+    "profileMinimum": "Минимальная цена: {price} {currency}",
+    "profilePricingNotes": "Пояснение к цене: {notes}",
+    "profilePortfolio": "Портфолио: {count} работ",
+    "profileTimezone": "Часовой пояс исполнителя: {timezone}",
+    "profileDeadline": "Желаемый срок: {days}",
+    "profileHours": "Доступность (часов в неделю): {hours}",
+    "profileTone": "Стиль общения: {tone}",
+    "profileEditHint": "Изменить профиль: /profile upload — пришлите файл заново. Сбросить: /profile reset.",
+    "pauseReply": "Опрос приостановлен. Никаких запросов до /resume.",
+    "resumeReply": "Опрос возобновлён: следующий запрос будет сделан после новой случайной паузы {min}–{max} с (с учётом минимальной выдержки с прошлого запроса) и только внутри окна {window} ({timezone}).",
+    "unknownCommand": "Неизвестная команда: /{command}. Доступно: /status, /pause, /resume, /plan, /profile.",
+    "stopNotification": {
+      "header": "⛔ Опрос остановлен и не будет повторяться автоматически.",
+      "reason": "Причина: {reason}",
+      "diagnosticsHeader": "Диагностика ответа (HTML не сохраняется):",
+      "diagnosticsStatus": "• HTTP статус: {status}",
+      "diagnosticsBytes": "• Размер страницы: {bytes} байт",
+      "diagnosticsTitle": "• Заголовок страницы: {title}",
+      "diagnosticsMarkers": "• Маркеры: {markers}",
+      "diagnosticsExcerpt": "• Фрагмент: {excerpt}",
+      "footer": "Что можно сделать: проверить состояние страницы вручную в браузере и возобновить опрос командой /resume, когда доступ восстановится."
+    },
+    "plan": {
+      "title": "План опроса (проверьте перед запуском):",
+      "timezone": "Часовой пояс окна: {timezone}",
+      "window": "Окно опроса: {start}–{end}; после {end} опрос останавливается до следующего дня.",
+      "interval": "Интервал между запросами: случайный {min}–{max} с (не постоянный, при ошибках не уменьшается).",
+      "firstRequestImmediate": "Первый запрос после старта: сразу, без паузы. После перезапуска выдерживается минимальный интервал с момента последнего запроса.",
+      "firstRequestDelayed": "Пауза выбирается перед каждым запросом, включая первый.",
+      "singleRequest": "Одновременно выполняется только один запрос; страницы заданий не запрашиваются.",
+      "pagesAuto": "Страницы категорий: бот добирает page=2, page=3, … пока выдача сообщает о следующих страницах, но не глубже {max} (каждая страница — отдельный запрос со своей паузой).",
+      "pagesSingle": "Страницы категорий: запрашивается только первая страница (source.pagination.maxPagesPerUrl = 1).",
+      "allowedUrls": "Разрешённые URL:",
+      "urlEntry": "[{state}] {url} — {label}",
+      "urlEntryNoLabel": "[{state}] {url} — без описания",
+      "urlEnabled": "включён",
+      "urlDisabled": "выключен",
+      "urlExpectedCategory": "ожидаемая категория: {category}",
+      "urlConfirmation": "подтверждение: {text}",
+      "categories": "Целевые категории:",
+      "permission": "Подтверждение охвата разрешением: {status}",
+      "permissionNone": "нет",
+      "scope": "Объём: {text}",
+      "scopeChanges": "Изменения объёма:",
+      "scopeChange": "{date}: {text}",
+      "notCovered": "Не входит в разрешение:",
+      "noHtml": "HTML не сохраняется: карточки разбираются в памяти и отбрасываются.",
+      "pollPlanAll": "План опроса: {count} запрос(ов) — все категории заданий.",
+      "pollPlanCategories": "План опроса: {count} запрос(ов) — только выбранные категории.",
+      "pollPlanUrl": "{url} — {reason}",
+      "pollPlanSkipped": "{url} — не объявлен в source.allowedUrls, запрос не будет сделан",
+      "pollPlanReasons": {
+        "no-selection": "все категории заданий (свой выбор не сделан), приходят все задания",
+        "all-categories": "выбраны все категории, приходят все задания",
+        "category": "выбранная категория",
+        "declared": "объявленный URL (общий список не в доступе)"
+      }
+    },
+    "onboarding": {
+      "registeredTitle": "Бот на связи.",
+      "welcomeBody": [
+        "Это личный бот-наблюдатель за заданиями Kwork. Он присылает оценку задания и черновик отклика.",
+        "Отклики бот не отправляет и никаких действий на Kwork не выполняет — только читает список заданий и уведомляет вас.",
+        "Доступ выдан: {who}.",
+        "Сначала загрузите профиль: /profile upload. Затем выберите категории: /categories.",
+        "Команды открыты: /status, /plan, /profile, /categories, /pause, /resume."
+      ],
+      "usersTitle": "Пользователи бота:",
+      "usersOwner": "• владелец: {who}",
+      "usersApproved": "• с доступом: {list}",
+      "usersNone": "• пока никого, кроме владельца",
+      "usersHint": "Доступ открыт всем, кто напишет боту. Свой профиль и категории каждый настраивает сам.",
+      "ownerOnly": "Команда доступна только владельцу бота.",
+      "profileUploadPrompt": "Пришлите файл профиля (JSON) следующим сообщением. Шаблон можно взять из config/performer-profile.json.",
+      "profileTemplateSent": "Отправил шаблон профиля файлом. Заполните его и пришлите обратно командой /profile upload.",
+      "profileSaved": "Профиль сохранён: навыков {skills}, минимальная цена {price} ₽, часовой пояс {timezone}.",
+      "profileSavedWarnings": "Замечания к профилю: {warnings}",
+      "profileInvalid": "Профиль не принят: {reason}",
+      "profileMissing": "Профиль пока не загружен. Загрузите свой: /profile upload — анализ будет считаться по вашим навыкам и ставке.",
+      "profileRemoved": "Личный профиль удалён: анализ вернётся к общему профилю.",
+      "profileDefault": "Используется общий профиль из настроек бота. Свой профиль: /profile upload.",
+      "profileNoTemplate": "Шаблон профиля не найден на сервере. Скопируйте структуру из config/performer-profile.json.",
+      "profileFileTooBig": "Файл слишком большой для профиля (лимит {limit} КБ).",
+      "profileDownloadFailed": "Не удалось получить файл от Telegram: {reason}",
+      "profileReminder": "Напоминание: профиль не загружен, поэтому задания вам не приходят. Загрузите профиль командой /profile upload.",
+      "profileSourcePersonal": "Профиль: личный, загружен вами.",
+      "profileSourceFallback": "Профиль: общий из настроек бота (свой можно загрузить через /profile upload).",
+      "profileSourceNone": "Профиль: не задан.",
+      "profileNotUsable": "В профиле нет ничего содержательного: заполните skills, portfolio или pricing, иначе анализ невозможен.",
+      "profileRateLimited": "Слишком много попыток загрузки. Попробуйте снова через {seconds} с.",
+      "connectedTitle": "Вы подключены к боту.",
+      "connectedBody": [
+        "Доступ открыт: {who}.",
+        "Загрузите свой профиль: /profile upload — от него зависят оценка задания, цена и черновик отклика.",
+        "Выберите категории: /categories — их можно указать числами или названиями."
+      ]
+    },
+    "telegramMenu": [
+      [
+        "start",
+        "запустить бота и получить доступ"
+      ],
+      [
+        "status",
+        "состояние опроса и хранилища"
+      ],
+      [
+        "plan",
+        "что именно бот запрашивает"
+      ],
+      [
+        "profile",
+        "профиль исполнителя"
+      ],
+      [
+        "categories",
+        "какие категории заданий показывать"
+      ],
+      [
+        "pause",
+        "поставить опрос на паузу"
+      ],
+      [
+        "resume",
+        "возобновить опрос"
+      ],
+      [
+        "help",
+        "список команд"
+      ]
+    ],
+    "statusModelUsage": "Модель: запросов за сутки {dayUsed}{dayLimit}, за час {hourUsed}{hourLimit}",
+    "telegramMenuOwner": [
+      [
+        "start",
+        "запустить бота и получить доступ"
+      ],
+      [
+        "status",
+        "состояние опроса и хранилища"
+      ],
+      [
+        "plan",
+        "что именно бот запрашивает"
+      ],
+      [
+        "profile",
+        "профиль исполнителя"
+      ],
+      [
+        "categories",
+        "какие категории заданий показывать"
+      ],
+      [
+        "pause",
+        "поставить опрос на паузу"
+      ],
+      [
+        "resume",
+        "возобновить опрос"
+      ],
+      [
+        "usage",
+        "расход приложения: токены, запросы, пользователи"
+      ],
+      [
+        "users",
+        "кто имеет доступ к боту"
+      ],
+      [
+        "help",
+        "список команд"
+      ]
+    ],
+    "usage": {
+      "title": "📊 Использование приложения",
+      "users": "Подключено пользователей: {approved}, владелец id {owner}",
+      "profiles": "Профили загружены: {withProfile} из {approved}",
+      "categories": "Свои категории выбрали: {withCategories} из {approved}",
+      "jobs": "Задания: сейчас в списке {active}",
+      "cycle": "С момента запуска: циклов {cycles}, запросов к Kwork {requests}, страниц {pages}, карточек {cards}, новых {newJobs}, повторов {duplicates}, отправлено сообщений {sentMessages}",
+      "model": "Модель «{provider}»: вызовов за сутки {dayCalls}{dayLimit}, за час {hourCalls}{hourLimit}, всего вызовов {totalCalls}",
+      "tokens": "Токены: сегодня {todayIn} вход / {todayOut} выход, всего {totalIn} / {totalOut} (сумма {total})",
+      "tokensUnknown": "Токены: провайдер не сообщает расход — считаем запросы",
+      "errors": "Ошибок за всё время: {errors}, предупреждений: {warnings}",
+      "reminders": "Напоминаний о профиле отправлено: {reminders}",
+      "period": "Первое наблюдение: {firstRunAt}, последнее: {lastRunAt}",
+      "noData": "Данных пока нет: цикл опроса ещё не выполнялся.",
+      "hint": "Подробности — /users и /profile.",
+      "modelLine": "Модель: {model}"
+    },
+    "categories": {
+      "title": "Категории заданий",
+      "current": "Ваши категории: {list}",
+      "all": "Выбраны все категории — приходят любые задания.",
+      "none": "Категории не выбраны: приходят задания из категорий по умолчанию.",
+      "catalogTitle": "Доступные категории Kwork:",
+      "catalogLine": "• {id} — {label}",
+      "usage": "Команды: /categories — список, /categories all — все категории, /categories 37,38,79 — выбрать, /categories reset — по умолчанию.",
+      "saved": "Категории сохранены: {list}",
+      "reset": "Личный выбор категорий сброшен: используются категории по умолчанию.",
+      "unknown": "Неизвестные id категорий: {ids}. Посмотрите список командой /categories.",
+      "empty": "Укажите хотя бы один id: /categories 37,38,79",
+      "byText": "Можно писать названием: /categories Верстка или /categories «Верстка по макету». Регистр и буквы ё/е, й/и не важны.",
+      "resolved": "Распознано: {list}",
+      "ambiguous": "Уточните, что имелось в виду: {list}",
+      "more": "…и ещё {count}. Уточните запрос или используйте /categories list с фильтром."
+    },
+    "profileNoPersonal": "Личный профиль не загружен. Общего профиля нет: загрузите свой через /profile upload."
+  },
+  "cli": {
+    "statusStorage": "Хранилище:",
+    "statusActiveJobs": "  актуальных заданий в индексе: {count}",
+    "statusKeys": "  ключей дедупликации: {total} (id {stableId} + url {url} + составных {composite}); по одному на задание",
+    "statusIndexUpdated": "  индекс обновлён: {date}",
+    "statusState": "Состояние: {json}",
+    "statusRecent": "Последние задания:",
+    "statusRecentEntry": "  {date} {id} — {title}",
+    "statusAllowedUrls": "Разрешённые URL: {urls}",
+    "statusAllowedUrlsNone": "нет",
+    "categoriesTitle": "Числовые идентификаторы категорий Kwork в обработанных заданиях:",
+    "categoriesEmpty": "  пока нет данных: сначала выполните живой цикл опроса (poll/bot)",
+    "categoriesEntry": "  category_id={id}: заданий {count}; например: {titles}",
+    "categoriesMappingTitle": "Текущее отображение категорий:",
+    "categoriesConfirmed": "  подтверждено: {value}",
+    "categoriesYes": "да",
+    "categoriesNo": "нет",
+    "categoriesById": "  byCategoryId: {json}",
+    "categoriesByLinkId": "  byCategoryLinkId: {json}",
+    "dryRunFixture": "Fixture {name}: карточек {cards}, стратегия {strategy}",
+    "dryRunStrategyUnknown": "не определена",
+    "dryRunSkipped": "Пропущено (вне выбранных категорий): {title}",
+    "dryRunNoTitle": "без заголовка",
+    "dryRunEntry": "===== {fixture} | id={id} | {verdict} | повтор={duplicate} =====",
+    "dryRunTotals": "Итого: карточек в категориях {total}, новых {fresh}, пропущено вне категорий {skipped}.",
+    "configCheckPlanHeader": "Проверка конфигурации и профиля:",
+    "configCheckWarning": "  предупреждение: {text}",
+    "configCheckError": "  ОШИБКА: {text}",
+    "configCheckTelegram": "Telegram:",
+    "configCheckItem": "  {text}",
+    "configCheckResult": "Итог: {text}",
+    "configCheckOk": "конфигурация корректна",
+    "configCheckFailed": "есть ошибки",
+    "error": "Ошибка: {message}",
+    "help": [
+      "Использование: node src/index.js <команда>",
+      "  config-check   проверить конфигурацию, профиль, секреты и план опроса",
+      "  plan           показать разрешённые URL, расписание и категории",
+      "  dry-run        разобрать сохранённые fixtures и показать сообщения (без сети)",
+      "  reset          очистить список задач и состояние (данные соберутся заново)",
+      "  categories     показать числовые id категорий Kwork для подтверждения отображения",
+      "  categories-refresh  обновить каталог категорий с сайта (один GET на страницу списка)",
+      "  status         показать состояние хранилища",
+      "  poll           запустить планировщик (живой опрос, требует подтверждения)",
+      "  bot            планировщик + приём команд Telegram",
+      "  dashboard      локальная страница состояния"
+    ],
+    "categoriesTotals": "Всего актуальных заданий: {total} | категорий встречается: {categories}",
+    "categoriesNoteUnconfirmed": "Отображение не подтверждено: задания не отбрасываются, приходят с пометкой «категория не подтверждена».",
+    "categoriesNoteConfirmed": "Отображение подтверждено: задания вне выбранных категорий отбрасываются.",
+    "resetConfirm": "Будут удалены индекс задач и состояние бота: {files}. История обработки ({history}) сохранится. Продолжить? Добавьте --yes.",
+    "resetDone": "Список задач очищен. Удалено файлов: {removed}. Следующий запуск соберёт задания заново и пришлёт уведомления.",
+    "resetHard": "Режим --hard: удалена и история обработки.",
+    "resetNothing": "Нечего очищать: файлов состояния нет.",
+    "resetHelp": "  reset          очистить список задач и состояние (данные соберутся заново)",
+    "refreshTitle": "Обновление каталога категорий",
+    "refreshDone": "Каталог сохранён: {file}\nРазделов: {sections}, категорий: {categories}, подразделов: {attributes}",
+    "refreshSource": "Источник: {source}",
+    "refreshNoSource": "Не удалось получить страницу списка заданий: укажите --file=<путь> с сохранённым HTML.",
+    "refreshHelp": "  categories-refresh  обновить каталог категорий с сайта (один GET на страницу списка)"
+  },
+  "dashboard": {
+    "title": "Kwork watcher — состояние",
+    "subtitle": "Страница только для чтения. Бот не отправляет отклики и не выполняет действий на Kwork.",
+    "planTitle": "План опроса",
+    "noUrls": "нет разрешённых URL",
+    "scheduleLine": "Окно: <b>{start}–{end}</b> ({timezone}), интервал: <b>{min}–{max} с</b> (случайный), после {end} опрос останавливается до следующего дня.",
+    "paginationNotConfirmed": "(пейджинация не подтверждена!)",
+    "disabled": "(выключен)",
+    "categoriesTitle": "Категории",
+    "noCategories": "не заданы",
+    "stateTitle": "Состояние",
+    "storageTitle": "Хранилище",
+    "storageLine": "Актуальных заданий в индексе: <b>{total}</b>. Ключи: id {stableId}, url {url}, составные {composite}. Индекс обновлён: {updatedAt}.",
+    "recentTitle": "Последние задания",
+    "tableWhen": "Когда",
+    "tableId": "ID",
+    "tableTitle": "Заголовок",
+    "tableVerdict": "Рекомендация",
+    "tableNotified": "Уведомление",
+    "tableEmpty": "пока пусто",
+    "tableYes": "да",
+    "tableNo": "нет",
+    "profileTitle": "Профиль",
+    "profileLine": "{headline}<br>Минимальная цена: {minimum} {currency}<br>Работ в портфолио: {portfolio}"
+  },
+  "parser": {
+    "noTitle": "Не удалось найти заголовок задания в карточке.",
+    "nonNumericId": "Атрибут идентификатора не является числом: {value}",
+    "multipleLinks": "В карточке найдено ссылок на задания: {count}; использована первая по длине текста.",
+    "noDescription": "Описание отсутствует в карточке списка.",
+    "strategyEmbedded": "Встроенный JSON страницы (массив wants)",
+    "strategyJsonLd": "JSON-LD",
+    "noStrategies": "Ни одна известная стратегия разбора не нашла карточек. Возможна смена разметки или пустая выдача; данные не выдумывались.",
+    "embeddedFiltered": "Отфильтровано по отображению категорий: {count} (categoryLinksIdRu вне выбранных категорий).",
+    "embeddedWon": "Встроенный JSON дал {count} заданий; контейнеры разметки ({strategy}) не разбирались, чтобы не дублировать данные.",
+    "jsonLdWon": "JSON-LD дал {count} карточек; разметка также содержит контейнеры ({strategy}) — они не разбирались, чтобы не дублировать данные.",
+    "embeddedMissing": "Встроенный JSON с массивом wants не найден.",
+    "embeddedMultiple": "Найдено несколько массивов wants ({count}); использован самый крупный.",
+    "embeddedNoId": "В элементе хоста нет идентификатора задания.",
+    "embeddedNoDate": "Поле date_create отсутствует или пустое."
+  },
+  "model": {
+    "systemPrompt": "Отвечай строго JSON.",
+    "logUnavailable": "Модель настроена, но недоступна: анализ остаётся на эвристике.",
+    "logBadJson": "Ответ модели не разобран как JSON: дополнение пропущено.",
+    "logCallFailed": "Вызов модели не удался: анализ продолжается на эвристике.",
+    "prompt": [
+      "Ты помогаешь фрилансеру оценить задание с Kwork. Отвечай ТОЛЬКО JSON-объектом.",
+      "Строгие правила:",
+      "1) Не придумывай факты: используй только переданные данные задания и профиля.",
+      "2) Разделяй: facts (из задания), inferences (твои выводы), unknown (неизвестное).",
+      "3) Не обещай опыт, отзывы, технологии и сроки, которых нет в профиле.",
+      "4) Не называй фиксированную цену и срок до уточнения объёма.",
+      "5) Не предлагай отправлять отклик или выполнять действия на Kwork.",
+      "Формат ответа: {\"summary\": string, \"extraQuestions\": string[], \"notes\": string[]}",
+      "",
+      "Задание (JSON): {job}",
+      "Эвристический анализ (JSON): {analysis}",
+      "Профиль (JSON): {profile}"
+    ],
+    "httpError": "HTTP {status} от провайдера модели",
+    "logRateLimited": "Провайдер модели ответил лимитом (429): задание проанализировано эвристикой. Увеличьте паузу или уменьшите частоту вызовов модели.",
+    "logAuthFailed": "Провайдер модели отклонил ключ (401/403): проверьте LLM_API_KEY — возможно, ключ отозван или просрочен.",
+    "logModelNotFound": "Провайдер модели не знает указанную модель: проверьте LLM_MODEL.",
+    "logTooLong": "Запрос к модели превысил лимит контекста: сократите описание задания или описания в профиле.",
+    "logBudgetDay": "Суточная квота запросов к модели исчерпана ({used} из {limit}): анализ идёт на эвристике до сброса квоты.",
+    "logBudgetHour": "Часовая квота запросов к модели исчерпана ({used} из {limit}): анализ идёт на эвристике."
+  },
+  "window": {
+    "opened": {
+      "header": "🟢 Окно опроса открыто.",
+      "schedule": "Запросы к Kwork идут с {start} до {end} ({timezone}), пауза между ними — случайные {min}–{max} с.",
+      "previousDay": "За прошлый день обработано заданий: {count}.",
+      "firstRequestSoon": "Первый запрос будет сделан сразу.",
+      "controls": "Пауза — /pause, состояние — /status."
+    },
+    "closed": {
+      "header": "🔴 Окно опроса закрыто.",
+      "schedule": "Запросы к Kwork возобновятся завтра в {start} ({timezone}).",
+      "stats": "За сегодня: запросов {requests}, новых заданий {newJobs}, всего в списке {active}.",
+      "noRequests": "Сегодня запросов не было.",
+      "controls": "Пока окно закрыто, бот не делает запросов. Возобновить вручную — /resume после открытия окна."
+    }
+  },
+  "rates": {
+    "line": "Стоимость: {price} (около {hours} ч по ставке {rate} ₽/час). Срок: {days}.",
+    "reasonNoText": "Оценка невозможна: в карточке нет ни заголовка, ни описания.",
+    "reasonNoScope": "Оценка невозможна: в тексте задания не видно состава работ.",
+    "assumptionSections": "Расчёт по объёму: объёмных секций контента {count} × {hours} ч.",
+    "assumptionComponents": "Отдельные элементы: {list}.",
+    "assumptionUrgency": "В задании есть признаки срочности — сроки и стоимость пересчитаны с запасом.",
+    "assumptionRate": "Ставка {rate} ₽/час из профиля.",
+    "assumptionRefine": "Точную цену подтвержу после просмотра макета и согласования объёма.",
+    "components": {
+      "calculator": "калькулятор стоимости",
+      "sliders": "слайдеры и карусели",
+      "beforeAfter": "слайдеры «до/после»",
+      "forms": "формы заявок с валидацией",
+      "mask": "маска ввода телефона",
+      "modal": "модальные окна",
+      "tabs": "табы",
+      "accordion": "аккордеон и FAQ",
+      "gallery": "галерея работ и кейсы",
+      "map": "карта с контактами",
+      "animations": "плавные анимации появления",
+      "seo": "семантическая разметка и базовая SEO-подготовка",
+      "stack": "вёрстка на чистом коде без конструкторов",
+      "customDesign": "индивидуальный дизайн по эскизу или референсу",
+      "texts": "тексты и контент",
+      "images": "оптимизация и подготовка изображений",
+      "pdf": "PDF-документы и сметы",
+      "multipage": "вёрстка нескольких страниц"
+    },
+    "lineMinimumOnly": "Ориентир по минимальному объёму: {price} (около {hours} ч по ставке {rate} ₽/час), срок {days}. Точную цену подтвержу после просмотра макета.",
+    "assumptionMinimumOnly": "В тексте задания нет явного состава работ: расчёт по минимальному объёму.",
+    "reasonNoRate": "Оценка невозможна: в профиле не задана ставка (pricing.hourly_rate)."
+  }
+}

@@ -1,0 +1,1755 @@
+{
+  "note": "Полный каталог категорий Kwork. Обновляется командой: node src/index.js categories-refresh",
+  "source": "https://kwork.ru/projects?c=79",
+  "urlScheme": {
+    "category": "/projects?c=<id>",
+    "attribute": "/projects?c=<id>&attr=<id>",
+    "note": "Числовой id совпадает с полем category_id в выдаче заданий."
+  },
+  "counts": {
+    "sections": 7,
+    "categories": 54,
+    "attributes": 219
+  },
+  "updatedAt": "2026-10-08",
+  "sections": [
+    {
+      "id": 5,
+      "name": "Тексты и переводы",
+      "seo": null,
+      "categories": [
+        303,
+        75,
+        35,
+        74,
+        235,
+        73
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Аудио, видео, съемка",
+      "seo": null,
+      "categories": [
+        20,
+        76,
+        78,
+        300,
+        77,
+        23,
+        106
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Разработка и IT",
+      "seo": null,
+      "categories": [
+        79,
+        80,
+        38,
+        40,
+        39,
+        255,
+        41,
+        37,
+        81
+      ]
+    },
+    {
+      "id": 15,
+      "name": "Дизайн",
+      "seo": null,
+      "categories": [
+        28,
+        24,
+        306,
+        90,
+        25,
+        286,
+        272,
+        68,
+        27,
+        270,
+        250
+      ]
+    },
+    {
+      "id": 17,
+      "name": "SEO и трафик",
+      "seo": null,
+      "categories": [
+        44,
+        43,
+        273,
+        71,
+        59,
+        56,
+        72
+      ]
+    },
+    {
+      "id": 45,
+      "name": "Соцсети и маркетинг",
+      "seo": null,
+      "categories": [
+        108,
+        113,
+        49,
+        47,
+        112,
+        46
+      ]
+    },
+    {
+      "id": 83,
+      "name": "Бизнес и жизнь",
+      "seo": null,
+      "categories": [
+        64,
+        262,
+        55,
+        84,
+        265,
+        114,
+        65,
+        63
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": 35,
+      "name": "Переводы",
+      "sectionId": 5,
+      "sectionName": "Тексты и переводы",
+      "description": "",
+      "url": "/projects?c=35",
+      "attributes": [
+        {
+          "id": 6412,
+          "title": "С аудио/видео",
+          "url": "/projects?c=35&attr=6412"
+        },
+        {
+          "id": 6413,
+          "title": "С текста",
+          "url": "/projects?c=35&attr=6413"
+        },
+        {
+          "id": 6414,
+          "title": "С изображения",
+          "url": "/projects?c=35&attr=6414"
+        },
+        {
+          "id": 6415,
+          "title": "Переводы устные",
+          "url": "/projects?c=35&attr=6415"
+        }
+      ]
+    },
+    {
+      "id": 73,
+      "name": "Тексты и наполнение сайта",
+      "sectionId": 5,
+      "sectionName": "Тексты и переводы",
+      "description": "",
+      "url": "/projects?c=73",
+      "attributes": [
+        {
+          "id": 456533,
+          "title": "Художественные тексты",
+          "url": "/projects?c=73&attr=456533"
+        },
+        {
+          "id": 456546,
+          "title": "Сценарии",
+          "url": "/projects?c=73&attr=456546"
+        },
+        {
+          "id": 456587,
+          "title": "Комментарии",
+          "url": "/projects?c=73&attr=456587"
+        },
+        {
+          "id": 456594,
+          "title": "Корректура",
+          "url": "/projects?c=73&attr=456594"
+        },
+        {
+          "id": 478352,
+          "title": "SEO-тексты",
+          "url": "/projects?c=73&attr=478352"
+        },
+        {
+          "id": 478418,
+          "title": "Карточки товаров",
+          "url": "/projects?c=73&attr=478418"
+        },
+        {
+          "id": 483484,
+          "title": "Статьи",
+          "url": "/projects?c=73&attr=483484"
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "name": "Продающие и бизнес-тексты",
+      "sectionId": 5,
+      "sectionName": "Тексты и переводы",
+      "description": "",
+      "url": "/projects?c=74",
+      "attributes": [
+        {
+          "id": 236,
+          "title": "Продающие тексты",
+          "url": "/projects?c=74&attr=236"
+        },
+        {
+          "id": 240,
+          "title": "Реклама и email",
+          "url": "/projects?c=74&attr=240"
+        },
+        {
+          "id": 1668,
+          "title": "Авто и мото",
+          "url": "/projects?c=74&attr=1668"
+        },
+        {
+          "id": 1670,
+          "title": "Работа, карьера",
+          "url": "/projects?c=74&attr=1670"
+        },
+        {
+          "id": 1671,
+          "title": "Юридическая",
+          "url": "/projects?c=74&attr=1671"
+        },
+        {
+          "id": 1673,
+          "title": "Медицина и здоровье",
+          "url": "/projects?c=74&attr=1673"
+        },
+        {
+          "id": 1674,
+          "title": "Интернет и технологии",
+          "url": "/projects?c=74&attr=1674"
+        },
+        {
+          "id": 1675,
+          "title": "Кулинария",
+          "url": "/projects?c=74&attr=1675"
+        },
+        {
+          "id": 1676,
+          "title": "Электроника, гаджеты",
+          "url": "/projects?c=74&attr=1676"
+        },
+        {
+          "id": 1677,
+          "title": "Красота и мода",
+          "url": "/projects?c=74&attr=1677"
+        },
+        {
+          "id": 1678,
+          "title": "Культура и искусство",
+          "url": "/projects?c=74&attr=1678"
+        },
+        {
+          "id": 1679,
+          "title": "Недвижимость",
+          "url": "/projects?c=74&attr=1679"
+        },
+        {
+          "id": 1680,
+          "title": "Образование и наука",
+          "url": "/projects?c=74&attr=1680"
+        },
+        {
+          "id": 1681,
+          "title": "Семья, дети",
+          "url": "/projects?c=74&attr=1681"
+        },
+        {
+          "id": 1682,
+          "title": "Отдых и развлечения",
+          "url": "/projects?c=74&attr=1682"
+        },
+        {
+          "id": 1683,
+          "title": "Спорт",
+          "url": "/projects?c=74&attr=1683"
+        },
+        {
+          "id": 1684,
+          "title": "Строительство",
+          "url": "/projects?c=74&attr=1684"
+        },
+        {
+          "id": 1687,
+          "title": "Другое",
+          "url": "/projects?c=74&attr=1687"
+        },
+        {
+          "id": 3996,
+          "title": "Туризм и путешествия",
+          "url": "/projects?c=74&attr=3996"
+        },
+        {
+          "id": 4511,
+          "title": "Финансы, банки",
+          "url": "/projects?c=74&attr=4511"
+        },
+        {
+          "id": 4512,
+          "title": "Хобби и увлечения",
+          "url": "/projects?c=74&attr=4512"
+        },
+        {
+          "id": 404242,
+          "title": "Коммерческие предложения",
+          "url": "/projects?c=74&attr=404242"
+        },
+        {
+          "id": 404288,
+          "title": "Скрипты продаж и выступлений",
+          "url": "/projects?c=74&attr=404288"
+        },
+        {
+          "id": 452907,
+          "title": "Посты для соцсетей",
+          "url": "/projects?c=74&attr=452907"
+        }
+      ]
+    },
+    {
+      "id": 75,
+      "name": "Набор текста",
+      "sectionId": 5,
+      "sectionName": "Тексты и переводы",
+      "description": "",
+      "url": "/projects?c=75",
+      "attributes": [
+        {
+          "id": 1187,
+          "title": "С аудио/видео",
+          "url": "/projects?c=75&attr=1187"
+        },
+        {
+          "id": 1188,
+          "title": "С изображений",
+          "url": "/projects?c=75&attr=1188"
+        }
+      ]
+    },
+    {
+      "id": 235,
+      "name": "Резюме и вакансии",
+      "sectionId": 5,
+      "sectionName": "Тексты и переводы",
+      "description": "",
+      "url": "/projects?c=235",
+      "attributes": [
+        {
+          "id": 3325,
+          "title": "Текст вакансии",
+          "url": "/projects?c=235&attr=3325"
+        },
+        {
+          "id": 3326,
+          "title": "Составление резюме",
+          "url": "/projects?c=235&attr=3326"
+        },
+        {
+          "id": 202220,
+          "title": "Сопроводительные письма",
+          "url": "/projects?c=235&attr=202220"
+        }
+      ]
+    },
+    {
+      "id": 303,
+      "name": "ИИ-тексты",
+      "sectionId": 5,
+      "sectionName": "Тексты и переводы",
+      "description": "",
+      "url": "/projects?c=303",
+      "attributes": [
+        {
+          "id": 4178791,
+          "title": "ИИ-генерация статей",
+          "url": "/projects?c=303&attr=4178791"
+        },
+        {
+          "id": 4178794,
+          "title": "ИИ-обработка текстов",
+          "url": "/projects?c=303&attr=4178794"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "Аудиозапись и озвучка",
+      "sectionId": 7,
+      "sectionName": "Аудио, видео, съемка",
+      "description": "",
+      "url": "/projects?c=20",
+      "attributes": [
+        {
+          "id": 1213,
+          "title": "Озвучка и дикторы",
+          "url": "/projects?c=20&attr=1213"
+        },
+        {
+          "id": 1214,
+          "title": "Аудиоролик",
+          "url": "/projects?c=20&attr=1214"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Музыка и песни",
+      "sectionId": 7,
+      "sectionName": "Аудио, видео, съемка",
+      "description": "",
+      "url": "/projects?c=23",
+      "attributes": [
+        {
+          "id": 1221,
+          "title": "Написание музыки",
+          "url": "/projects?c=23&attr=1221"
+        },
+        {
+          "id": 1222,
+          "title": "Запись вокала",
+          "url": "/projects?c=23&attr=1222"
+        },
+        {
+          "id": 1224,
+          "title": "Аранжировка",
+          "url": "/projects?c=23&attr=1224"
+        },
+        {
+          "id": 1339,
+          "title": "Тексты песен",
+          "url": "/projects?c=23&attr=1339"
+        },
+        {
+          "id": 209737,
+          "title": "Песня (музыка + текст + вокал)",
+          "url": "/projects?c=23&attr=209737"
+        }
+      ]
+    },
+    {
+      "id": 76,
+      "name": "Видеоролики",
+      "sectionId": 7,
+      "sectionName": "Аудио, видео, съемка",
+      "description": "",
+      "url": "/projects?c=76",
+      "attributes": [
+        {
+          "id": 831,
+          "title": "Дудл-видео",
+          "url": "/projects?c=76&attr=831"
+        },
+        {
+          "id": 832,
+          "title": "Анимационный ролик",
+          "url": "/projects?c=76&attr=832"
+        },
+        {
+          "id": 833,
+          "title": "Проморолик",
+          "url": "/projects?c=76&attr=833"
+        },
+        {
+          "id": 2070,
+          "title": "Скринкасты и видеообзоры",
+          "url": "/projects?c=76&attr=2070"
+        },
+        {
+          "id": 3560,
+          "title": "Кинетическая типографика",
+          "url": "/projects?c=76&attr=3560"
+        },
+        {
+          "id": 6300,
+          "title": "Слайд-шоу",
+          "url": "/projects?c=76&attr=6300"
+        },
+        {
+          "id": 211813,
+          "title": "Видео с ведущим",
+          "url": "/projects?c=76&attr=211813"
+        },
+        {
+          "id": 314311,
+          "title": "Видеопрезентация",
+          "url": "/projects?c=76&attr=314311"
+        },
+        {
+          "id": 735162,
+          "title": "Ролики для соцсетей",
+          "url": "/projects?c=76&attr=735162"
+        }
+      ]
+    },
+    {
+      "id": 77,
+      "name": "Интро и анимация логотипа",
+      "sectionId": 7,
+      "sectionName": "Аудио, видео, съемка",
+      "description": "",
+      "url": "/projects?c=77",
+      "attributes": [
+        {
+          "id": 210161,
+          "title": "Анимация логотипа",
+          "url": "/projects?c=77&attr=210161"
+        },
+        {
+          "id": 210163,
+          "title": "Интро и заставки",
+          "url": "/projects?c=77&attr=210163"
+        },
+        {
+          "id": 311032,
+          "title": "GIF-анимация",
+          "url": "/projects?c=77&attr=311032"
+        }
+      ]
+    },
+    {
+      "id": 78,
+      "name": "Видеосъемка и монтаж",
+      "sectionId": 7,
+      "sectionName": "Аудио, видео, съемка",
+      "description": "",
+      "url": "/projects?c=78",
+      "attributes": [
+        {
+          "id": 4644,
+          "title": "Видеосъемка",
+          "url": "/projects?c=78&attr=4644"
+        },
+        {
+          "id": 4645,
+          "title": "Монтаж и обработка видео",
+          "url": "/projects?c=78&attr=4645"
+        },
+        {
+          "id": 322707,
+          "title": "Фотосъемка",
+          "url": "/projects?c=78&attr=322707"
+        }
+      ]
+    },
+    {
+      "id": 106,
+      "name": "Редактирование аудио",
+      "sectionId": 7,
+      "sectionName": "Аудио, видео, съемка",
+      "description": "",
+      "url": "/projects?c=106",
+      "attributes": [
+        {
+          "id": 1226,
+          "title": "Обработка звука",
+          "url": "/projects?c=106&attr=1226"
+        },
+        {
+          "id": 1227,
+          "title": "Выделение звука из видео",
+          "url": "/projects?c=106&attr=1227"
+        }
+      ]
+    },
+    {
+      "id": 300,
+      "name": "ИИ-генерация видео",
+      "sectionId": 7,
+      "sectionName": "Аудио, видео, съемка",
+      "description": "",
+      "url": "/projects?c=300",
+      "attributes": []
+    },
+    {
+      "id": 37,
+      "name": "Создание сайта",
+      "sectionId": 11,
+      "sectionName": "Разработка и IT",
+      "description": "",
+      "url": "/projects?c=37",
+      "attributes": [
+        {
+          "id": 5016,
+          "title": "Новый сайт",
+          "url": "/projects?c=37&attr=5016"
+        },
+        {
+          "id": 5017,
+          "title": "Копия сайта",
+          "url": "/projects?c=37&attr=5017"
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "name": "Доработка и настройка сайта",
+      "sectionId": 11,
+      "sectionName": "Разработка и IT",
+      "description": "",
+      "url": "/projects?c=38",
+      "attributes": [
+        {
+          "id": 1271,
+          "title": "Доработка сайта",
+          "url": "/projects?c=38&attr=1271"
+        },
+        {
+          "id": 1272,
+          "title": "Исправление ошибок",
+          "url": "/projects?c=38&attr=1272"
+        },
+        {
+          "id": 1273,
+          "title": "Защита и лечение сайта",
+          "url": "/projects?c=38&attr=1273"
+        },
+        {
+          "id": 1275,
+          "title": "Настройка сайта",
+          "url": "/projects?c=38&attr=1275"
+        },
+        {
+          "id": 1276,
+          "title": "Плагины и темы",
+          "url": "/projects?c=38&attr=1276"
+        },
+        {
+          "id": 1587,
+          "title": "Ускорение сайта",
+          "url": "/projects?c=38&attr=1587"
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "name": "Мобильные приложения",
+      "sectionId": 11,
+      "sectionName": "Разработка и IT",
+      "description": "",
+      "url": "/projects?c=39",
+      "attributes": [
+        {
+          "id": 1405,
+          "title": "iOS",
+          "url": "/projects?c=39&attr=1405"
+        },
+        {
+          "id": 1406,
+          "title": "Android",
+          "url": "/projects?c=39&attr=1406"
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "name": "Игры",
+      "sectionId": 11,
+      "sectionName": "Разработка и IT",
+      "description": "",
+      "url": "/projects?c=40",
+      "attributes": [
+        {
+          "id": 7890,
+          "title": "Разработка игр",
+          "url": "/projects?c=40&attr=7890"
+        },
+        {
+          "id": 7891,
+          "title": "Готовые игры",
+          "url": "/projects?c=40&attr=7891"
+        },
+        {
+          "id": 7892,
+          "title": "Игровой сервер",
+          "url": "/projects?c=40&attr=7892"
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "name": "Скрипты, боты и mini apps",
+      "sectionId": 11,
+      "sectionName": "Разработка и IT",
+      "description": "",
+      "url": "/projects?c=41",
+      "attributes": [
+        {
+          "id": 211,
+          "title": "Парсеры",
+          "url": "/projects?c=41&attr=211"
+        },
+        {
+          "id": 3587,
+          "title": "Чат-боты",
+          "url": "/projects?c=41&attr=3587"
+        },
+        {
+          "id": 7352,
+          "title": "Скрипты",
+          "url": "/projects?c=41&attr=7352"
+        },
+        {
+          "id": 3934090,
+          "title": "Telegram Mini Apps",
+          "url": "/projects?c=41&attr=3934090"
+        },
+        {
+          "id": 4158112,
+          "title": "ИИ-боты",
+          "url": "/projects?c=41&attr=4158112"
+        },
+        {
+          "id": 4158119,
+          "title": "Машинное обучение",
+          "url": "/projects?c=41&attr=4158119"
+        },
+        {
+          "id": 5503256,
+          "title": "Интернет вещей (IoT)",
+          "url": "/projects?c=41&attr=5503256"
+        },
+        {
+          "id": 5548694,
+          "title": "ИИ-агенты",
+          "url": "/projects?c=41&attr=5548694"
+        }
+      ]
+    },
+    {
+      "id": 79,
+      "name": "Верстка",
+      "sectionId": 11,
+      "sectionName": "Разработка и IT",
+      "description": "",
+      "url": "/projects?c=79",
+      "attributes": [
+        {
+          "id": 224,
+          "title": "Верстка по макету",
+          "url": "/projects?c=79&attr=224"
+        },
+        {
+          "id": 226,
+          "title": "Доработка и адаптация верстки",
+          "url": "/projects?c=79&attr=226"
+        }
+      ]
+    },
+    {
+      "id": 80,
+      "name": "Десктоп программирование",
+      "sectionId": 11,
+      "sectionName": "Разработка и IT",
+      "description": "",
+      "url": "/projects?c=80",
+      "attributes": [
+        {
+          "id": 975,
+          "title": "Программы на заказ",
+          "url": "/projects?c=80&attr=975"
+        },
+        {
+          "id": 976,
+          "title": "Макросы для Office",
+          "url": "/projects?c=80&attr=976"
+        },
+        {
+          "id": 977,
+          "title": "1С",
+          "url": "/projects?c=80&attr=977"
+        },
+        {
+          "id": 1088,
+          "title": "Готовые программы",
+          "url": "/projects?c=80&attr=1088"
+        }
+      ]
+    },
+    {
+      "id": 81,
+      "name": "Юзабилити, тесты и помощь",
+      "sectionId": 11,
+      "sectionName": "Разработка и IT",
+      "description": "",
+      "url": "/projects?c=81",
+      "attributes": [
+        {
+          "id": 5915,
+          "title": "Юзабилити-аудит",
+          "url": "/projects?c=81&attr=5915"
+        },
+        {
+          "id": 5916,
+          "title": "Тестирование на ошибки",
+          "url": "/projects?c=81&attr=5916"
+        },
+        {
+          "id": 396954,
+          "title": "Компьютерная и IT помощь",
+          "url": "/projects?c=81&attr=396954"
+        }
+      ]
+    },
+    {
+      "id": 255,
+      "name": "Сервера и хостинг",
+      "sectionId": 11,
+      "sectionName": "Разработка и IT",
+      "description": "",
+      "url": "/projects?c=255",
+      "attributes": [
+        {
+          "id": 471959,
+          "title": "Администрирование сервера",
+          "url": "/projects?c=255&attr=471959"
+        },
+        {
+          "id": 472033,
+          "title": "Домены",
+          "url": "/projects?c=255&attr=472033"
+        },
+        {
+          "id": 472048,
+          "title": "Хостинг",
+          "url": "/projects?c=255&attr=472048"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "Веб и мобильный дизайн",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=24",
+      "attributes": [
+        {
+          "id": 71,
+          "title": "Мобильный дизайн",
+          "url": "/projects?c=24&attr=71"
+        },
+        {
+          "id": 75,
+          "title": "Email-дизайн",
+          "url": "/projects?c=24&attr=75"
+        },
+        {
+          "id": 393348,
+          "title": "Веб-дизайн",
+          "url": "/projects?c=24&attr=393348"
+        },
+        {
+          "id": 398966,
+          "title": "Баннеры и иконки",
+          "url": "/projects?c=24&attr=398966"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "Логотип и брендинг",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=25",
+      "attributes": [
+        {
+          "id": 401928,
+          "title": "Логотипы",
+          "url": "/projects?c=25&attr=401928"
+        },
+        {
+          "id": 401976,
+          "title": "Фирменный стиль",
+          "url": "/projects?c=25&attr=401976"
+        },
+        {
+          "id": 402005,
+          "title": "Брендирование и сувенирка",
+          "url": "/projects?c=25&attr=402005"
+        },
+        {
+          "id": 402019,
+          "title": "Визитки",
+          "url": "/projects?c=25&attr=402019"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "name": "Полиграфия",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=27",
+      "attributes": [
+        {
+          "id": 1245,
+          "title": "Брошюра и буклет",
+          "url": "/projects?c=27&attr=1245"
+        },
+        {
+          "id": 1246,
+          "title": "Листовка и флаер",
+          "url": "/projects?c=27&attr=1246"
+        },
+        {
+          "id": 1247,
+          "title": "Плакат и афиша",
+          "url": "/projects?c=27&attr=1247"
+        },
+        {
+          "id": 1248,
+          "title": "Календарь и открытка",
+          "url": "/projects?c=27&attr=1248"
+        },
+        {
+          "id": 1249,
+          "title": "Каталог, меню, книга",
+          "url": "/projects?c=27&attr=1249"
+        },
+        {
+          "id": 7838,
+          "title": "Грамота и сертификат",
+          "url": "/projects?c=27&attr=7838"
+        },
+        {
+          "id": 3597762,
+          "title": "Гайд и чек-лист",
+          "url": "/projects?c=27&attr=3597762"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "name": "Арт и иллюстрации",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=28",
+      "attributes": [
+        {
+          "id": 819,
+          "title": "Иллюстрации и рисунки",
+          "url": "/projects?c=28&attr=819"
+        },
+        {
+          "id": 361968,
+          "title": "Тату, принты",
+          "url": "/projects?c=28&attr=361968"
+        },
+        {
+          "id": 391843,
+          "title": "Дизайн игр",
+          "url": "/projects?c=28&attr=391843"
+        },
+        {
+          "id": 396640,
+          "title": "Готовые шаблоны и рисунки",
+          "url": "/projects?c=28&attr=396640"
+        },
+        {
+          "id": 398135,
+          "title": "Портрет, шарж, карикатура",
+          "url": "/projects?c=28&attr=398135"
+        },
+        {
+          "id": 411950,
+          "title": "Стикеры",
+          "url": "/projects?c=28&attr=411950"
+        },
+        {
+          "id": 1273394,
+          "title": "NFT арт",
+          "url": "/projects?c=28&attr=1273394"
+        }
+      ]
+    },
+    {
+      "id": 68,
+      "name": "Обработка и редактирование",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=68",
+      "attributes": [
+        {
+          "id": 399848,
+          "title": "Отрисовка в векторе",
+          "url": "/projects?c=68&attr=399848"
+        },
+        {
+          "id": 399851,
+          "title": "3D-графика",
+          "url": "/projects?c=68&attr=399851"
+        },
+        {
+          "id": 399860,
+          "title": "Фотомонтаж и обработка",
+          "url": "/projects?c=68&attr=399860"
+        }
+      ]
+    },
+    {
+      "id": 90,
+      "name": "Интерьер и экстерьер",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=90",
+      "attributes": [
+        {
+          "id": 206908,
+          "title": "Интерьер",
+          "url": "/projects?c=90&attr=206908"
+        },
+        {
+          "id": 206911,
+          "title": "Дизайн домов и сооружений",
+          "url": "/projects?c=90&attr=206911"
+        },
+        {
+          "id": 206914,
+          "title": "Ландшафтный дизайн",
+          "url": "/projects?c=90&attr=206914"
+        },
+        {
+          "id": 206915,
+          "title": "Дизайн мебели",
+          "url": "/projects?c=90&attr=206915"
+        }
+      ]
+    },
+    {
+      "id": 250,
+      "name": "Промышленный дизайн",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=250",
+      "attributes": [
+        {
+          "id": 399791,
+          "title": "Упаковка и этикетка",
+          "url": "/projects?c=250&attr=399791"
+        },
+        {
+          "id": 399794,
+          "title": "Электроника и устройства",
+          "url": "/projects?c=250&attr=399794"
+        },
+        {
+          "id": 399797,
+          "title": "Предметы и аксессуары",
+          "url": "/projects?c=250&attr=399797"
+        }
+      ]
+    },
+    {
+      "id": 270,
+      "name": "Презентации и инфографика",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=270",
+      "attributes": [
+        {
+          "id": 314398,
+          "title": "Презентации",
+          "url": "/projects?c=270&attr=314398"
+        },
+        {
+          "id": 314408,
+          "title": "Инфографика",
+          "url": "/projects?c=270&attr=314408"
+        },
+        {
+          "id": 314418,
+          "title": "Карта и схема",
+          "url": "/projects?c=270&attr=314418"
+        }
+      ]
+    },
+    {
+      "id": 272,
+      "name": "Наружная реклама",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=272",
+      "attributes": [
+        {
+          "id": 456459,
+          "title": "Билборды и стенды",
+          "url": "/projects?c=272&attr=456459"
+        },
+        {
+          "id": 456460,
+          "title": "Витрины и вывески",
+          "url": "/projects?c=272&attr=456460"
+        }
+      ]
+    },
+    {
+      "id": 286,
+      "name": "Маркетплейсы и соцсети",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=286",
+      "attributes": [
+        {
+          "id": 1433356,
+          "title": "Дизайн в соцсетях",
+          "url": "/projects?c=286&attr=1433356"
+        },
+        {
+          "id": 1433413,
+          "title": "Дизайн для маркетплейсов",
+          "url": "/projects?c=286&attr=1433413"
+        }
+      ]
+    },
+    {
+      "id": 306,
+      "name": "ИИ-генерация изображений",
+      "sectionId": 15,
+      "sectionName": "Дизайн",
+      "description": "",
+      "url": "/projects?c=306",
+      "attributes": [
+        {
+          "id": 4200138,
+          "title": "Нейрофотосессия",
+          "url": "/projects?c=306&attr=4200138"
+        },
+        {
+          "id": 4200145,
+          "title": "ИИ-аватары и портреты",
+          "url": "/projects?c=306&attr=4200145"
+        },
+        {
+          "id": 4200150,
+          "title": "ИИ-иллюстрации и концепт-арт",
+          "url": "/projects?c=306&attr=4200150"
+        },
+        {
+          "id": 4200156,
+          "title": "ИИ-логотипы и инфографика",
+          "url": "/projects?c=306&attr=4200156"
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "name": "Внутренняя оптимизация",
+      "sectionId": 17,
+      "sectionName": "SEO и трафик",
+      "description": "",
+      "url": "/projects?c=43",
+      "attributes": [
+        {
+          "id": 478713,
+          "title": "Полная оптимизация",
+          "url": "/projects?c=43&attr=478713"
+        },
+        {
+          "id": 478714,
+          "title": "Оптимизация страниц",
+          "url": "/projects?c=43&attr=478714"
+        },
+        {
+          "id": 478716,
+          "title": "Robots и sitemap",
+          "url": "/projects?c=43&attr=478716"
+        },
+        {
+          "id": 478717,
+          "title": "Теги",
+          "url": "/projects?c=43&attr=478717"
+        },
+        {
+          "id": 478718,
+          "title": "Перелинковка",
+          "url": "/projects?c=43&attr=478718"
+        },
+        {
+          "id": 478720,
+          "title": "Микроразметка",
+          "url": "/projects?c=43&attr=478720"
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "name": "SEO аудиты, консультации",
+      "sectionId": 17,
+      "sectionName": "SEO и трафик",
+      "description": "",
+      "url": "/projects?c=44",
+      "attributes": [
+        {
+          "id": 1120,
+          "title": "SEO аудит",
+          "url": "/projects?c=44&attr=1120"
+        },
+        {
+          "id": 1121,
+          "title": "Консультация",
+          "url": "/projects?c=44&attr=1121"
+        }
+      ]
+    },
+    {
+      "id": 56,
+      "name": "Статистика и аналитика",
+      "sectionId": 17,
+      "sectionName": "SEO и трафик",
+      "description": "",
+      "url": "/projects?c=56",
+      "attributes": [
+        {
+          "id": 942,
+          "title": "Метрики и счетчики",
+          "url": "/projects?c=56&attr=942"
+        },
+        {
+          "id": 943,
+          "title": "Анализ сайтов, рынка",
+          "url": "/projects?c=56&attr=943"
+        }
+      ]
+    },
+    {
+      "id": 59,
+      "name": "Ссылки",
+      "sectionId": 17,
+      "sectionName": "SEO и трафик",
+      "description": "",
+      "url": "/projects?c=59",
+      "attributes": [
+        {
+          "id": 1378848,
+          "title": "В профилях",
+          "url": "/projects?c=59&attr=1378848"
+        },
+        {
+          "id": 1378934,
+          "title": "В соцсетях",
+          "url": "/projects?c=59&attr=1378934"
+        },
+        {
+          "id": 1379022,
+          "title": "В комментариях",
+          "url": "/projects?c=59&attr=1379022"
+        },
+        {
+          "id": 1379024,
+          "title": "Каталоги сайтов",
+          "url": "/projects?c=59&attr=1379024"
+        },
+        {
+          "id": 1379027,
+          "title": "Форумные",
+          "url": "/projects?c=59&attr=1379027"
+        },
+        {
+          "id": 1379472,
+          "title": "Статейные и крауд",
+          "url": "/projects?c=59&attr=1379472"
+        }
+      ]
+    },
+    {
+      "id": 71,
+      "name": "Семантическое ядро",
+      "sectionId": 17,
+      "sectionName": "SEO и трафик",
+      "description": "",
+      "url": "/projects?c=71",
+      "attributes": [
+        {
+          "id": 3799,
+          "title": "С нуля",
+          "url": "/projects?c=71&attr=3799"
+        },
+        {
+          "id": 3800,
+          "title": "По сайту",
+          "url": "/projects?c=71&attr=3800"
+        },
+        {
+          "id": 186454,
+          "title": "Готовое ядро",
+          "url": "/projects?c=71&attr=186454"
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "name": "Трафик",
+      "sectionId": 17,
+      "sectionName": "SEO и трафик",
+      "description": "",
+      "url": "/projects?c=72",
+      "attributes": [
+        {
+          "id": 199,
+          "title": "Посетители на сайт",
+          "url": "/projects?c=72&attr=199"
+        },
+        {
+          "id": 200,
+          "title": "Поведенческие факторы",
+          "url": "/projects?c=72&attr=200"
+        }
+      ]
+    },
+    {
+      "id": 273,
+      "name": "Продвижение сайта в топ",
+      "sectionId": 17,
+      "sectionName": "SEO и трафик",
+      "description": "",
+      "url": "/projects?c=273",
+      "attributes": []
+    },
+    {
+      "id": 46,
+      "name": "Соцсети и SMM",
+      "sectionId": 45,
+      "sectionName": "Соцсети и маркетинг",
+      "description": "",
+      "url": "/projects?c=46",
+      "attributes": [
+        {
+          "id": 242,
+          "title": "ВКонтакте",
+          "url": "/projects?c=46&attr=242"
+        },
+        {
+          "id": 265,
+          "title": "Youtube",
+          "url": "/projects?c=46&attr=265"
+        },
+        {
+          "id": 273,
+          "title": "Одноклассники",
+          "url": "/projects?c=46&attr=273"
+        },
+        {
+          "id": 281,
+          "title": "Telegram",
+          "url": "/projects?c=46&attr=281"
+        },
+        {
+          "id": 302,
+          "title": "Другие",
+          "url": "/projects?c=46&attr=302"
+        },
+        {
+          "id": 7912,
+          "title": "Дзен",
+          "url": "/projects?c=46&attr=7912"
+        },
+        {
+          "id": 411064,
+          "title": "TikTok",
+          "url": "/projects?c=46&attr=411064"
+        },
+        {
+          "id": 3118203,
+          "title": "Rutube",
+          "url": "/projects?c=46&attr=3118203"
+        },
+        {
+          "id": 5273900,
+          "title": "MAX",
+          "url": "/projects?c=46&attr=5273900"
+        },
+        {
+          "id": 5293031,
+          "title": "VC.ru",
+          "url": "/projects?c=46&attr=5293031"
+        },
+        {
+          "id": 5293041,
+          "title": "Reddit",
+          "url": "/projects?c=46&attr=5293041"
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "name": "Маркетинг и PR",
+      "sectionId": 45,
+      "sectionName": "Соцсети и маркетинг",
+      "description": "",
+      "url": "/projects?c=47",
+      "attributes": [
+        {
+          "id": 1356,
+          "title": "Контент-маркетинг",
+          "url": "/projects?c=47&attr=1356"
+        },
+        {
+          "id": 710463,
+          "title": "Продвижение музыки",
+          "url": "/projects?c=47&attr=710463"
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "name": "Контекстная реклама",
+      "sectionId": 45,
+      "sectionName": "Соцсети и маркетинг",
+      "description": "",
+      "url": "/projects?c=49",
+      "attributes": [
+        {
+          "id": 206,
+          "title": "Яндекс Директ",
+          "url": "/projects?c=49&attr=206"
+        },
+        {
+          "id": 207,
+          "title": "Google Ads",
+          "url": "/projects?c=49&attr=207"
+        }
+      ]
+    },
+    {
+      "id": 108,
+      "name": "E-mail маркетинг и рассылки",
+      "sectionId": 45,
+      "sectionName": "Соцсети и маркетинг",
+      "description": "",
+      "url": "/projects?c=108",
+      "attributes": [
+        {
+          "id": 938,
+          "title": "Отправка рассылки",
+          "url": "/projects?c=108&attr=938"
+        },
+        {
+          "id": 939,
+          "title": "Ведение и настройка почтового клиента",
+          "url": "/projects?c=108&attr=939"
+        }
+      ]
+    },
+    {
+      "id": 112,
+      "name": "Маркетплейсы и доски объявлений",
+      "sectionId": 45,
+      "sectionName": "Соцсети и маркетинг",
+      "description": "",
+      "url": "/projects?c=112",
+      "attributes": [
+        {
+          "id": 233,
+          "title": "Справочники и каталоги",
+          "url": "/projects?c=112&attr=233"
+        },
+        {
+          "id": 1357,
+          "title": "Маркетплейсы",
+          "url": "/projects?c=112&attr=1357"
+        },
+        {
+          "id": 1466231,
+          "title": "Доски объявлений",
+          "url": "/projects?c=112&attr=1466231"
+        }
+      ]
+    },
+    {
+      "id": 113,
+      "name": "Базы данных и клиентов",
+      "sectionId": 45,
+      "sectionName": "Соцсети и маркетинг",
+      "description": "",
+      "url": "/projects?c=113",
+      "attributes": [
+        {
+          "id": 1116,
+          "title": "Сбор данных",
+          "url": "/projects?c=113&attr=1116"
+        },
+        {
+          "id": 1117,
+          "title": "Готовые базы",
+          "url": "/projects?c=113&attr=1117"
+        },
+        {
+          "id": 1118,
+          "title": "Проверка, чистка базы",
+          "url": "/projects?c=113&attr=1118"
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "name": "Обучение и консалтинг",
+      "sectionId": 83,
+      "sectionName": "Бизнес и жизнь",
+      "description": "",
+      "url": "/projects?c=55",
+      "attributes": [
+        {
+          "id": 1210,
+          "title": "Онлайн курсы",
+          "url": "/projects?c=55&attr=1210"
+        },
+        {
+          "id": 313903,
+          "title": "Консалтинг",
+          "url": "/projects?c=55&attr=313903"
+        },
+        {
+          "id": 313914,
+          "title": "Оформление по ГОСТу",
+          "url": "/projects?c=55&attr=313914"
+        },
+        {
+          "id": 313915,
+          "title": "Репетиторы",
+          "url": "/projects?c=55&attr=313915"
+        }
+      ]
+    },
+    {
+      "id": 63,
+      "name": "Юридическая помощь",
+      "sectionId": 83,
+      "sectionName": "Бизнес и жизнь",
+      "description": "",
+      "url": "/projects?c=63",
+      "attributes": [
+        {
+          "id": 1052,
+          "title": "Договор и доверенность",
+          "url": "/projects?c=63&attr=1052"
+        },
+        {
+          "id": 1053,
+          "title": "Судебный документ",
+          "url": "/projects?c=63&attr=1053"
+        },
+        {
+          "id": 1054,
+          "title": "Юридическая консультация",
+          "url": "/projects?c=63&attr=1054"
+        },
+        {
+          "id": 1055,
+          "title": "Ведение ООО и ИП",
+          "url": "/projects?c=63&attr=1055"
+        },
+        {
+          "id": 1056,
+          "title": "Интернет-право",
+          "url": "/projects?c=63&attr=1056"
+        },
+        {
+          "id": 313439,
+          "title": "Визы",
+          "url": "/projects?c=63&attr=313439"
+        }
+      ]
+    },
+    {
+      "id": 64,
+      "name": "Бухгалтерия и налоги",
+      "sectionId": 83,
+      "sectionName": "Бизнес и жизнь",
+      "description": "",
+      "url": "/projects?c=64",
+      "attributes": [
+        {
+          "id": 1058,
+          "title": "Для физлиц",
+          "url": "/projects?c=64&attr=1058"
+        },
+        {
+          "id": 1060,
+          "title": "Для юрлиц и ИП",
+          "url": "/projects?c=64&attr=1060"
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "name": "Стройка и ремонт",
+      "sectionId": 83,
+      "sectionName": "Бизнес и жизнь",
+      "description": "",
+      "url": "/projects?c=65",
+      "attributes": [
+        {
+          "id": 212246,
+          "title": "Строительство",
+          "url": "/projects?c=65&attr=212246"
+        },
+        {
+          "id": 212284,
+          "title": "Проектирование объекта",
+          "url": "/projects?c=65&attr=212284"
+        },
+        {
+          "id": 212336,
+          "title": "Машиностроение",
+          "url": "/projects?c=65&attr=212336"
+        },
+        {
+          "id": 219572,
+          "title": "Предметы и аксессуары",
+          "url": "/projects?c=65&attr=219572"
+        }
+      ]
+    },
+    {
+      "id": 84,
+      "name": "Персональный помощник",
+      "sectionId": 83,
+      "sectionName": "Бизнес и жизнь",
+      "description": "",
+      "url": "/projects?c=84",
+      "attributes": [
+        {
+          "id": 1046,
+          "title": "Поиск информации",
+          "url": "/projects?c=84&attr=1046"
+        },
+        {
+          "id": 1049,
+          "title": "Работа в MS Office",
+          "url": "/projects?c=84&attr=1049"
+        },
+        {
+          "id": 212032,
+          "title": "Анализ информации",
+          "url": "/projects?c=84&attr=212032"
+        },
+        {
+          "id": 212035,
+          "title": "Любая интеллектуальная работа",
+          "url": "/projects?c=84&attr=212035"
+        },
+        {
+          "id": 212038,
+          "title": "Любая рутинная работа",
+          "url": "/projects?c=84&attr=212038"
+        },
+        {
+          "id": 396277,
+          "title": "Менеджмент проектов",
+          "url": "/projects?c=84&attr=396277"
+        }
+      ]
+    },
+    {
+      "id": 114,
+      "name": "Продажа сайтов и групп",
+      "sectionId": 83,
+      "sectionName": "Бизнес и жизнь",
+      "description": "",
+      "url": "/projects?c=114",
+      "attributes": [
+        {
+          "id": 469647,
+          "title": "Сайт без домена",
+          "url": "/projects?c=114&attr=469647"
+        },
+        {
+          "id": 470048,
+          "title": "Сайт с доменом",
+          "url": "/projects?c=114&attr=470048"
+        },
+        {
+          "id": 470449,
+          "title": "Приложения",
+          "url": "/projects?c=114&attr=470449"
+        },
+        {
+          "id": 799926,
+          "title": "Аудит, оценка, помощь",
+          "url": "/projects?c=114&attr=799926"
+        },
+        {
+          "id": 4554318,
+          "title": "Домены",
+          "url": "/projects?c=114&attr=4554318"
+        },
+        {
+          "id": 4554415,
+          "title": "Группы и каналы соцсетей",
+          "url": "/projects?c=114&attr=4554415"
+        }
+      ]
+    },
+    {
+      "id": 262,
+      "name": "Обзвоны и продажи",
+      "sectionId": 83,
+      "sectionName": "Бизнес и жизнь",
+      "description": "",
+      "url": "/projects?c=262",
+      "attributes": [
+        {
+          "id": 312334,
+          "title": "Продажи по телефону",
+          "url": "/projects?c=262&attr=312334"
+        },
+        {
+          "id": 312337,
+          "title": "Телефонный опрос",
+          "url": "/projects?c=262&attr=312337"
+        },
+        {
+          "id": 312340,
+          "title": "Прием звонков",
+          "url": "/projects?c=262&attr=312340"
+        }
+      ]
+    },
+    {
+      "id": 265,
+      "name": "Подбор персонала",
+      "sectionId": 83,
+      "sectionName": "Бизнес и жизнь",
+      "description": "",
+      "url": "/projects?c=265",
+      "attributes": [
+        {
+          "id": 312496,
+          "title": "Подбор резюме",
+          "url": "/projects?c=265&attr=312496"
+        },
+        {
+          "id": 312503,
+          "title": "Найм специалиста",
+          "url": "/projects?c=265&attr=312503"
+        }
+      ]
+    }
+  ]
+}
