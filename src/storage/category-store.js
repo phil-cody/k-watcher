@@ -39,7 +39,8 @@ export function createCategoryCatalog(config = {}, { fullCatalog = null } = {}) 
   const byId = new Map();
   const attributes = new Map();
 
-  // 1. Полный каталог с сайта.
+  // Полный каталог с сайта — единственный источник категорий. Списка «целевых»
+  // категорий в конфиге нет: выбор делает каждый пользователь, а подписи берутся отсюда.
   for (const category of fullCatalog?.categories ?? []) {
     const numeric = Number(category.id);
     if (!Number.isFinite(numeric)) continue;
@@ -52,7 +53,6 @@ export function createCategoryCatalog(config = {}, { fullCatalog = null } = {}) 
       section: category.sectionName ?? null,
       sectionId: category.sectionId ?? null,
       url: category.url ?? `/projects?c=${numeric}`,
-      inDefault: false,
       source: 'site'
     });
     for (const attribute of category.attributes ?? []) {
@@ -68,35 +68,6 @@ export function createCategoryCatalog(config = {}, { fullCatalog = null } = {}) 
     }
   }
 
-  // 2. Краткая выжимка из конфигурации: дополняет и помечает категории по умолчанию.
-  const entries = config.categoryCatalog?.entries ?? {};
-  for (const [id, entry] of Object.entries(entries)) {
-    const numeric = Number(id);
-    if (!Number.isFinite(numeric)) continue;
-    const existing = byId.get(numeric);
-    if (existing) {
-      existing.inDefault = entry?.inDefault === true || existing.inDefault;
-      continue;
-    }
-    byId.set(numeric, {
-      id: numeric,
-      name: entry?.label ?? `Категория ${id}`,
-      label: entry?.label ?? `Категория ${id}`,
-      section: entry?.section ?? null,
-      sectionId: null,
-      url: `/projects?c=${numeric}`,
-      inDefault: entry?.inDefault === true,
-      source: 'config'
-    });
-  }
-  // Категории по умолчанию: то, что бот запрашивает без личного выбора.
-  // Один числовой id может встречаться несколько раз (подразделы внутри категории),
-  // поэтому список уникален.
-  const defaultIds = [];
-  for (const category of config.targetCategories ?? []) {
-    const numeric = Number(category?.kworkCategoryId);
-    if (Number.isFinite(numeric) && !defaultIds.includes(numeric)) defaultIds.push(numeric);
-  }
   const sections = (fullCatalog?.sections ?? []).map((section) => ({
     id: Number(section.id),
     name: section.name,
@@ -107,7 +78,6 @@ export function createCategoryCatalog(config = {}, { fullCatalog = null } = {}) 
     byId,
     attributes,
     sections,
-    defaultIds,
     /** Полное название категории (при наличии — с разделом). */
     labelOf(id, { withSection = true } = {}) {
       const entry = byId.get(Number(id));
@@ -153,12 +123,9 @@ export function createCategoryCatalog(config = {}, { fullCatalog = null } = {}) 
     has(id) {
       return byId.has(Number(id));
     },
-    /** Список для показа пользователю: сначала категории по умолчанию, затем остальные. */
+    /** Список для показа пользователю: по возрастанию id категории. */
     list() {
-      return [...byId.values()].sort((a, b) => {
-        if (a.inDefault !== b.inDefault) return a.inDefault ? -1 : 1;
-        return a.id - b.id;
-      });
+      return [...byId.values()].sort((a, b) => a.id - b.id);
     }
   };
 }
@@ -483,8 +450,10 @@ function mergeResolutions(results) {
  * перечисляем их: так видно, что именно может прийти по этому запросу.
  */
 export function applyCategoryName(job, catalog) {
-  const categoryId = Number(job?.kworkCategoryId);
-  if (!catalog || !Number.isFinite(categoryId)) return job;
+  // Важно: Number(null) === 0, поэтому пустое значение проверяем до приведения.
+  if (!catalog || job?.kworkCategoryId === null || job?.kworkCategoryId === undefined) return job;
+  const categoryId = Number(job.kworkCategoryId);
+  if (!Number.isFinite(categoryId) || categoryId <= 0) return job;
   const entry = catalog.entryOf ? catalog.entryOf(categoryId) : catalog.byId?.get(categoryId);
   if (!entry) return job;
 
@@ -497,7 +466,16 @@ export function applyCategoryName(job, catalog) {
   return {
     ...job,
     declaredCategory: job.declaredCategory ?? name,
-    category: job.category ? { ...job.category, label } : job.category,
+    // Категория строится из КАТАЛОГА САЙТА, а не из списка в конфиге: каталог знает все
+    // категории, поэтому подпись и вердикт остаются верными для любой выбранной ниши.
+    category: {
+      ...(job.category ?? {}),
+      id: job.category?.id ?? categoryId,
+      label,
+      matchedBy: job.category?.matchedBy ?? 'catalog',
+      confidence: job.category?.confidence ?? 'high',
+      declared: job.category?.declared ?? name
+    },
     categoryUrl: entry.url ?? `/projects?c=${categoryId}`
   };
 }

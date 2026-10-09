@@ -54,10 +54,9 @@ export function describePlan(config, { texts = null, selection = null } = {}) {
   }
   lines.push('');
   lines.push(t('commands.plan.baseUrl', { url: allProjectsUrl(base) }));
-  lines.push(t('commands.plan.categories'));
-  for (const category of config.targetCategories ?? []) {
-    lines.push(`• ${category.label}`);
-  }
+  // Список категорий в конфиге не хранится: он персональный (data/categories/<id>.json)
+  // и виден в самом плане опроса выше. Здесь только подсказка, где его менять.
+  lines.push(t('commands.plan.categoriesHint'));
   lines.push('');
   lines.push(
     t('commands.plan.permission', { status: source.permission?.status ?? t('commands.plan.permissionNone') })

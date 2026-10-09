@@ -236,7 +236,7 @@ export function jobFromWant(item, context) {
   if (!description) missingFields.push('description');
   if (!budget) missingFields.push('budget');
   if (!publishedAt) missingFields.push('publishedAt');
-  if (!category) missingFields.push('declaredCategory');
+  // Категория берётся из каталога сайта (kworkCategoryId), а не из текста карточки.
   if (!clientName) missingFields.push('clientName');
 
   return {

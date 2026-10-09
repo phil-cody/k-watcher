@@ -44,7 +44,6 @@ export function createCycleRunner({
   const textsObject = texts ?? createTexts({ rootDir: config.rootDir ?? process.cwd() });
   const t = (path, params) => textsObject.t(path, params);
   const sourceConfig = config.source ?? {};
-  const categoryFilterConfirmed = config.categoryMapping?.confirmed === true;
   const paginationEnabled = config.source?.pagination?.enabled === true;
   const maxPagesPerUrl = paginationEnabled
     ? Math.min(Number(config.source.pagination.maxPagesPerUrl ?? 5) || 5, HARD_PAGE_LIMIT)
@@ -222,7 +221,6 @@ export function createCycleRunner({
       pruned: 0,
       sources: [],
       activeJobs: store.stats.total,
-      categoryFilterConfirmed,
       // Что опрашивали в этом проходе: режим и число страниц.
       pollPlan: { mode: plan.mode, urls: plan.urls.map((entry) => entry.url) },
       structureOk: true,
@@ -307,44 +305,37 @@ export function createCycleRunner({
           break;
         }
 
-        // Отбор по категориям выполняет персональный фильтр получателя
-        // (`categories.matches`): у каждого пользователя свой набор. Глобальный список
-        // targetCategories остаётся справочником для подписей и не отбрасывает задания.
-        const inTargets = parsed.jobs.filter((job) => Boolean(job.category));
-        const undetermined = parsed.jobs.filter((job) => !job.category);
-        let selected = parsed.jobs;
+        // Категория строится из каталога сайта сразу после разбора: подпись и вердикт
+        // верны для любой выбранной ниши, а не только для списка категорий в конфиге.
+        const jobs = categoryCatalog ? parsed.jobs.map((job) => applyCategoryName(job, categoryCatalog)) : parsed.jobs;
 
-        // Если персональных категорий нет (старая схема, тесты, dry-run), работает
-        // общий фильтр из конфигурации. С персональными категориями решение принимает
-        // фильтр получателя — тогда глобально ничего не отбрасываем.
-        if (categoryFilterConfirmed && !categories) {
-          selected = inTargets;
-          summary.outOfTargetCategories += undetermined.length;
-        } else if (!categoryFilterConfirmed && parsed.jobs.length > 0) {
-          summary.uncategorized.push(...parsed.jobs.map((job) => job.id));
+        // Отбор по категориям делает персональный фильтр получателя (`categories.matches`):
+        // у каждого пользователя свой набор. Здесь — только статистика по разбору страницы.
+        const withCategory = jobs.filter((job) => Boolean(job.category));
+        const withoutCategory = jobs.filter((job) => !job.category);
+        summary.inTargetCategories += withCategory.length;
+        summary.outOfTargetCategories += withoutCategory.length;
+        if (withoutCategory.length > 0) {
+          summary.uncategorized.push(...withoutCategory.map((job) => job.id));
         }
-        summary.inTargetCategories += inTargets.length;
 
         // 1. Отбираем задания, которых ещё нет в индексе.
         const fresh = [];
-        for (const job of selected) {
+        for (const job of jobs) {
           // Задание видели в выдаче: ключ сохраняем от очистки.
           for (const keyId of keyIdsForJob(job)) seenKeys.add(keyId);
 
-          // Название категории вместо числа: берём из каталога сайта.
-          const described = categoryCatalog ? applyCategoryName(job, categoryCatalog) : job;
-
-          const duplicateCheck = store.isProcessed(described);
+          const duplicateCheck = store.isProcessed(job);
           if (duplicateCheck.isDuplicate) {
             summary.duplicates += 1;
             logger?.debug(t('logs.duplicateSkipped'), {
-              id: described.id,
+              id: job.id,
               matchedBy: duplicateCheck.matchedBy,
               probableMatch: duplicateCheck.probableMatch
             });
             continue;
           }
-          fresh.push(described);
+          fresh.push(job);
         }
 
         // Решение о следующей странице принимаем до отправки: иначе пагинация

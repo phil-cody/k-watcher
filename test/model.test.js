@@ -163,6 +163,7 @@ test('classifyProviderStatus различает лимит, ключ и отсу
   assert.equal(classifyProviderStatus(401, 'invalid api key'), 'auth');
   assert.equal(classifyProviderStatus(403, 'permission denied'), 'auth');
   assert.equal(classifyProviderStatus(404, 'model not found'), 'model-not-found');
+  assert.equal(classifyProviderStatus(404, 'This model models/gemini-2.5-flash is no longer available to new users'), 'model-not-found');
   assert.equal(classifyProviderStatus(400, 'maximum context length exceeded'), 'too-long');
   assert.equal(classifyProviderStatus(500, 'internal error'), 'provider-error');
 });
@@ -195,6 +196,61 @@ test('429 от провайдера не роняет анализ и даёт �
   }
 });
 
+test('после 429 адаптер делает паузу и пропускает следующие вызовы', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'usage-'));
+  try {
+    let fetchCalls = 0;
+    const adapter = createModelAdapter({
+      model: { provider: 'openai-compatible', selective: { enabled: false }, usage: { cooldownMs: 60000 } },
+      secrets: { llmBaseUrl: 'https://example.invalid/v1', llmApiKey: 'k', llmModel: 'm' },
+      logger: { warn: () => {}, info: () => {}, error: () => {}, debug: () => {} },
+      fetchImpl: async () => {
+        fetchCalls += 1;
+        return { ok: false, status: 429, json: async () => ({}), text: async () => 'rate limit' };
+      },
+      texts,
+      dataDir: dir
+    });
+    await adapter.initUsage();
+    const job = makeFixtureJob();
+    const analysis = analyzeJob(job, profile, { texts });
+    await adapter.enrich(job, analysis, profile);
+    assert.equal(fetchCalls, 1);
+    const second = await adapter.enrich(job, analysis, profile);
+    assert.equal(second, null, 'второй вызов пропущен на время охлаждения');
+    assert.equal(fetchCalls, 1, 'сетевой вызов во время паузы не делается');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('минимальная пауза между вызовами модели соблюдается', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'usage-'));
+  try {
+    const timestamps = [];
+    const adapter = createModelAdapter({
+      model: { provider: 'openai-compatible', selective: { enabled: false }, usage: { minIntervalMs: 50 } },
+      secrets: { llmBaseUrl: 'https://example.invalid/v1', llmApiKey: 'k', llmModel: 'm' },
+      logger: { warn: () => {}, info: () => {}, error: () => {}, debug: () => {} },
+      fetchImpl: async () => {
+        timestamps.push(Date.now());
+        return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"summary":"x"}' } }] }), text: async () => '' };
+      },
+      texts,
+      dataDir: dir
+    });
+    await adapter.initUsage();
+    const job = makeFixtureJob();
+    const analysis = analyzeJob(job, profile, { texts });
+    await adapter.enrich(job, analysis, profile);
+    await adapter.enrich(job, analysis, profile);
+    assert.equal(timestamps.length, 2);
+    assert.ok(timestamps[1] - timestamps[0] >= 40, `между вызовами прошло >= minIntervalMs (${timestamps[1] - timestamps[0]} мс)`);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('ошибка ключа подсказывает проверить LLM_API_KEY', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'usage-'));
   try {
@@ -215,12 +271,11 @@ test('ошибка ключа подсказывает проверить LLM_AP
   }
 });
 
-test('выборочный режим не тратит квоту на понятные задания', async () => {
+test('модель вызывается для «возможно» и «нужно уточнить», не для подходит/отказов', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'usage-'));
   try {
     let calls = 0;
     const adapter = makeAdapter({
-      model: { selective: { enabled: true, mode: 'uncertain' } },
       dataDir: dir,
       fetchImpl: async (...args) => {
         calls += 1;
@@ -229,19 +284,15 @@ test('выборочный режим не тратит квоту на поня
     });
     await adapter.initUsage();
 
-    // Уверенное совпадение — модель не нужна.
     const clearJob = makeFixtureJob();
-    const clearAnalysis = { verdict: 'подходит', risks: [], unknown: [] };
-    assert.equal(adapter.shouldEnrich(clearJob, clearAnalysis), false);
-
-    // Неуверенность — модель поможет.
+    // «Возможно» — модель уточняет и пишет черновик.
+    assert.equal(adapter.shouldEnrich(clearJob, { verdict: 'возможно', risks: [], unknown: [] }), true);
+    // «Нужно уточнить» — модель помогает составить уточняющие вопросы.
     assert.equal(adapter.shouldEnrich(clearJob, { verdict: 'нужно уточнить', risks: [], unknown: [] }), true);
-    assert.equal(adapter.shouldEnrich(clearJob, { verdict: 'подходит', risks: [{ code: 'vague_scope' }], unknown: [] }), true);
-    assert.equal(adapter.shouldEnrich(clearJob, { verdict: 'подходит', risks: [], unknown: ['budget'] }), true);
-
-    // Режим always вызывает всегда.
-    const always = makeAdapter({ model: { selective: { enabled: true, mode: 'always' } }, dataDir: dir, fetchImpl: okFetch() });
-    assert.equal(always.shouldEnrich(clearJob, clearAnalysis), true);
+    // Уверенное «подходит» — черновик пишет эвристика, модель не тратит квоту.
+    assert.equal(adapter.shouldEnrich(clearJob, { verdict: 'подходит', risks: [], unknown: [] }), false);
+    // Отказ — модель не вызывается.
+    assert.equal(adapter.shouldEnrich(clearJob, { verdict: 'не подходит', risks: [{ code: 'excluded_work' }], unknown: [] }), false);
     assert.equal(calls, 0, 'shouldEnrich не должен сам делать запросы');
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -282,6 +333,51 @@ test('parseModelJson разбирает ответ в ограждении и т
   assert.deepEqual(parseModelJson('Вот результат: {"summary":"b"} — готово'), { summary: 'b' });
   assert.equal(parseModelJson('не json'), null);
   assert.equal(parseModelJson(''), null);
+  // Рассуждения модели до и после JSON, а также } внутри строки не ломают разбор.
+  assert.deepEqual(parseModelJson('Размышляю… { "summary": "готово { с фигурной скобкой }", "questions": ["q"] } …ещё текст'), {
+    summary: 'готово { с фигурной скобкой }',
+    questions: ['q']
+  });
+});
+
+test('enrich разбирает расширенный ответ: вердикт, вопросы, условия, черновик', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'kwork-model-'));
+  try {
+    const content = JSON.stringify({
+      verdict: 'возможно',
+      summary: 'Подходит частично',
+      questions: ['Где макет?', 'Какой срок?'],
+      conditions: ['Нужен доступ к макету', 'Тексты предоставит заказчик'],
+      draft: 'Готов взяться…',
+      notes: ['Риск: размытое ТЗ']
+    });
+    const adapter = makeAdapter({ fetchImpl: okFetch(content), dataDir: dir });
+    const job = makeFixtureJob();
+    const result = await adapter.enrich(job, analyzeJob(job, profile, { texts }), profile);
+    assert.equal(result.verdict, 'возможно');
+    assert.equal(result.summary, 'Подходит частично');
+    assert.deepEqual(result.questions, ['Где макет?', 'Какой срок?']);
+    assert.deepEqual(result.conditions, ['Нужен доступ к макету', 'Тексты предоставит заказчик']);
+    assert.equal(result.draft, 'Готов взяться…');
+    assert.deepEqual(result.notes, ['Риск: размытое ТЗ']);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('enrich отбрасывает недопустимый вердикт и пустой черновик', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'kwork-model-'));
+  try {
+    const content = JSON.stringify({ verdict: 'отлично', summary: 'ок', questions: [], conditions: [], draft: '', notes: [] });
+    const adapter = makeAdapter({ fetchImpl: okFetch(content), dataDir: dir });
+    const job = makeFixtureJob();
+    const result = await adapter.enrich(job, analyzeJob(job, profile, { texts }), profile);
+    assert.equal(result.verdict, null, 'недопустимый вердикт отбрасывается');
+    assert.equal(result.draft, null, 'пустой черновик → null');
+    assert.deepEqual(result.conditions, []);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('в /status видно расход квоты модели', async () => {

@@ -23,7 +23,7 @@ import { createLogger } from './util/logger.js';
 import { KworkListingParser } from './parser/job-parser.js';
 import { JobStore } from './storage/job-store.js';
 import { ProfileStore, readTemplateProfile } from './storage/profile-store.js';
-import { CategoryPreferences, createCategoryCatalog } from './storage/category-store.js';
+import { CategoryPreferences, createCategoryCatalog, applyCategoryName } from './storage/category-store.js';
 import {
   parseCategoryCatalog,
   loadCategoryCatalogFile,
@@ -81,12 +81,9 @@ async function bootstrap({ requireLiveSource = false, rootDir = process.cwd(), l
     profilesDir: resolve(config.dataDir, 'profiles'),
     logger
   });
+  // Парсеру список категорий больше не передаётся: подписи и id берутся из каталога
+  // сайта (applyCategoryName в цикле), поэтому конфиг не привязан к нише пользователя.
   const parser = new KworkListingParser({
-    targetCategories: config.targetCategories,
-    categoryMapping: {
-      ...(config.categoryMapping?.byCategoryLinkId ?? {}),
-      ...(config.categoryMapping?.byCategoryId ?? {})
-    },
     timezone: config.schedule?.timezone ?? 'Europe/Moscow',
     logger
   });
@@ -307,7 +304,7 @@ async function loadFixtures(dir) {
 }
 
 async function dryRun({ rootDir, logger, fixturesDir = 'test/fixtures', useFixtures = true }) {
-  const { config, profile, store, parser, modelAdapter, texts } = await bootstrap({ rootDir, logger });
+  const { config, profile, store, parser, modelAdapter, categoryCatalog, texts } = await bootstrap({ rootDir, logger });
   const results = [];
   let sent = 0;
   let skipped = 0;
@@ -325,7 +322,9 @@ async function dryRun({ rootDir, logger, fixturesDir = 'test/fixtures', useFixtu
         strategy: parsed.structure.strategy ?? texts.t('cli.dryRunStrategyUnknown')
       })
     );
-    for (const job of parsed.jobs) {
+    // Категория берётся из каталога сайта — так же, как в рабочем цикле.
+    const jobs = categoryCatalog ? parsed.jobs.map((job) => applyCategoryName(job, categoryCatalog)) : parsed.jobs;
+    for (const job of jobs) {
       if (!job.category) {
         skipped += 1;
         logger.info(
@@ -376,7 +375,8 @@ async function runDashboard({ rootDir, logger, port = 8787, host = '127.0.0.1' }
       `Dashboard не имеет аутентификации и не может слушать внешний адрес: ${host}. Используйте 127.0.0.1 и туннель SSH.`
     );
   }
-  const { config, profile, store, texts } = await bootstrap({ rootDir, logger });
+  const { config, profile, store, categoryCatalog, texts } = await bootstrap({ rootDir, logger });
+  const catalogList = categoryCatalog.list();
   const server = createServer(async (request, response) => {
     if (request.url === '/api/state') {
       const state = await store.readState();
@@ -384,7 +384,7 @@ async function runDashboard({ rootDir, logger, port = 8787, host = '127.0.0.1' }
         {
           plan: buildPollPlan({ base: baseUrlOf(config) }),
           schedule: config.schedule,
-          categories: config.targetCategories,
+          categories: catalogList,
           stats: store.stats,
           state
         },
@@ -402,7 +402,7 @@ async function runDashboard({ rootDir, logger, port = 8787, host = '127.0.0.1' }
       buildDashboardHtml({
         plan: buildPollPlan({ base: baseUrlOf(config) }),
         schedule: config.schedule,
-        categories: config.targetCategories,
+        categories: catalogList,
         profile,
         stats: store.stats,
         state,
@@ -484,7 +484,7 @@ async function main() {
       return 0;
     }
     case 'categories': {
-      const { config, store, texts } = await bootstrap({ rootDir, logger });
+      const { config, store, categoryCatalog, texts } = await bootstrap({ rootDir, logger });
       const recent = await store.readProcessedTail(500);
       const counts = new Map();
       for (const entry of recent) {
@@ -512,18 +512,15 @@ async function main() {
       process.stdout.write(
         `\n${texts.t('cli.categoriesTotals', { total: store.stats.total, categories: counts.size })}\n`
       );
-      const mapping = config.categoryMapping ?? {};
-      process.stdout.write(`\n${texts.t('cli.categoriesMappingTitle')}\n`);
-      process.stdout.write(
-        `${texts.t('cli.categoriesConfirmed', {
-          value: mapping.confirmed === true ? texts.t('cli.categoriesYes') : texts.t('cli.categoriesNo')
-        })}\n`
-      );
-      process.stdout.write(`${texts.t('cli.categoriesById', { json: JSON.stringify(mapping.byCategoryId ?? {}) })}\n`);
-      process.stdout.write(`${texts.t('cli.categoriesByLinkId', { json: JSON.stringify(mapping.byCategoryLinkId ?? {}) })}\n`);
-      process.stdout.write(
-        `\n${texts.t(mapping.confirmed === true ? 'cli.categoriesNoteConfirmed' : 'cli.categoriesNoteUnconfirmed')}\n`
-      );
+      // Сверка встреченных id с каталогом сайта: список категорий живёт только там,
+      // выбор — персональный (data/categories/<userId>.json).
+      const catalog = categoryCatalog;
+      const unknown = [...counts.keys()].filter((id) => !catalog.has(Number(id)));
+      process.stdout.write(`\n${texts.t('cli.categoriesCatalogTitle')}\n`);
+      process.stdout.write(`${texts.t('cli.categoriesCatalogTotal', { total: catalog.list().length })}\n`);
+      if (unknown.length > 0) {
+        process.stdout.write(`${texts.t('cli.categoriesUnknown', { ids: unknown.join(', ') })}\n`);
+      }
       return 0;
     }
     case 'reset': {

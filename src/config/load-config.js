@@ -191,9 +191,6 @@ export function validateConfig(config, { requireLiveSource = false } = {}) {
 
   if (schedule.pollingEnabled !== true) warnings.push('schedule.pollingEnabled = false: планировщик не будет делать запросы.');
 
-  const categories = Array.isArray(config.targetCategories) ? config.targetCategories : [];
-  if (categories.length === 0) warnings.push('targetCategories пуст: все карточки будут помечаться как «вне выбранных категорий».');
-
   const model = config.model ?? {};
   if (!MODEL_PROVIDERS.has(model.provider)) {
     errors.push(`Неизвестный model.provider: ${model.provider}`);

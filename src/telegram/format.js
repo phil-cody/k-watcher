@@ -154,28 +154,45 @@ export function buildJobSections(job, analysis, { texts: textsInput = null } = {
   for (const item of analysis.unknown) risks.push(`• ${escapeHtml(item)}`);
   sections.push(risks.join('\n'));
 
-  const price = [t('telegram.sections.pricing')];
-  price.push(label(t('telegram.labels.price'), escapeHtml(analysis.pricing.text)));
-  price.push(label(t('telegram.labels.deadline'), escapeHtml(analysis.estimate.text)));
-  for (const warning of analysis.pricing.warnings) {
-    price.push(label(t('telegram.labels.priceSuspicious'), escapeHtml(warning)));
-  }
-  if (!analysis.pricing.known || !analysis.estimate.known) {
-    price.push(`• ${t('telegram.labels.estimateIncomplete')}`);
-  }
-  sections.push(price.join('\n'));
+  // Для «не подходит» не пишем цену, предварительные условия, вопросы и черновик:
+  // отчёт — только факты, вывод и риски. «Нужно уточнить» показывает вопросы/условия,
+  // но без черновика (он готовится только для «подходит»/«возможно»).
+  const rejected = analysis.verdict === 'не подходит';
 
-  const questions = [t('telegram.sections.questions')];
-  analysis.questions.forEach((question, index) => questions.push(`${index + 1}. ${escapeHtml(question)}`));
-  sections.push(questions.join('\n'));
+  if (!rejected) {
+    const price = [t('telegram.sections.pricing')];
+    price.push(label(t('telegram.labels.price'), escapeHtml(analysis.pricing.text)));
+    price.push(label(t('telegram.labels.deadline'), escapeHtml(analysis.estimate.text)));
+    for (const warning of analysis.pricing.warnings) {
+      price.push(label(t('telegram.labels.priceSuspicious'), escapeHtml(warning)));
+    }
+    if (!analysis.pricing.known || !analysis.estimate.known) {
+      price.push(`• ${t('telegram.labels.estimateIncomplete')}`);
+    }
+    sections.push(price.join('\n'));
 
-  const draft = [t('telegram.sections.draft'), '', escapeHtml(analysis.draft.text)];
-  if (analysis.draft.assumptions.length > 0) {
-    draft.push('');
-    draft.push(t('telegram.sections.draftAssumptions'));
-    for (const assumption of analysis.draft.assumptions) draft.push(`— ${escapeHtml(assumption)}`);
+    // Предварительные условия (составляются моделью; эвристика их не задаёт).
+    if (Array.isArray(analysis.conditions) && analysis.conditions.length > 0) {
+      const conditions = [t('telegram.sections.conditions')];
+      for (const condition of analysis.conditions) conditions.push(`• ${escapeHtml(condition)}`);
+      sections.push(conditions.join('\n'));
+    }
+
+    const questions = [t('telegram.sections.questions')];
+    analysis.questions.forEach((question, index) => questions.push(`${index + 1}. ${escapeHtml(question)}`));
+    sections.push(questions.join('\n'));
   }
-  sections.push(draft.join('\n'));
+
+  // Черновик есть только для «подходит»/«возможно»; иначе секцию не показываем.
+  if (analysis.draft) {
+    const draft = [t('telegram.sections.draft'), '', escapeHtml(analysis.draft.text)];
+    if (analysis.draft.assumptions.length > 0) {
+      draft.push('');
+      draft.push(t('telegram.sections.draftAssumptions'));
+      for (const assumption of analysis.draft.assumptions) draft.push(`— ${escapeHtml(assumption)}`);
+    }
+    sections.push(draft.join('\n'));
+  }
 
   return sections;
 }

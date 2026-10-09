@@ -151,7 +151,7 @@ index.js    ← всё (композиция)
        ├─ иначе JSON-LD, иначе DOM-стратегии                     ← запасные пути
        └─ каждый job: нормализация полей, missingFields, dedupKey
    2.4 pageInfo.lastPage/total → сколько ещё страниц добрать (в пределах maxPagesPerUrl)
-   2.5 фильтр по категориям (только если categoryMapping.confirmed)
+   2.5 категория из каталога сайта (applyCategoryName) + персональный фильтр получателя
    2.6 для каждого нового job:
        ├─ store.isProcessed(job)           повтор? → пропустить
        ├─ analyzeAndDraft(job, profile)    → analysis + draft
@@ -796,12 +796,14 @@ node -e "console.log(require('./data/seen-index.json').total)"
 
 ### 8.1 Добавить категорию
 
-1. `config/default.json` → `targetCategories`: новая запись с `id`, `label`, `priority`
-   (меньше = приоритетнее при равных совпадениях текста), `matchHint`.
-2. Если известен числовой `kworkCategoryId` — вписать; иначе оставить `null`.
-3. `node src/index.js categories` → посмотреть, какие `category_id` встречаются.
-4. `categoryMapping.byCategoryId` → `{ "<id Kwork>": "<ваш id>" }`.
-5. Проверить: `node --test test/embedded-json.test.js`.
+Списка категорий в конфиге НЕТ: единственный источник — каталог сайта
+`config/categories.json`, а выбор — персональный (`data/categories/<userId>.json`).
+
+1. Обновить каталог с сайта: `node src/index.js categories-refresh`
+   (или `--file=page.html` без сети).
+2. Проверить, что нужная категория появилась: `node src/index.js categories`.
+3. Пользователь выбирает её сам: `/categories 273` или `/categories SEO аудиты`.
+4. Проверить: `node --test test/category-catalog.test.js test/categories.test.js`.
 
 ### 8.2 Парсить новое поле из Kwork
 
@@ -822,8 +824,9 @@ LLM_API_KEY=...
 LLM_MODEL=deepseek-chat
 ```
 
-`model-adapter.js` возвращает **только** `summary`, `notes`, `extraQuestions` — он физически
-не может изменить факты, риски, цену и черновик. При ошибке/таймауте анализ продолжается на
+`model-adapter.js` возвращает `verdict`, `summary`, `questions`, `conditions`, `draft`,
+`notes`. Он дополняет вердикт, вопросы, условия и черновик, но не меняет факты, риски и цену;
+жёсткие блокирующие риски модель не перекрывает. При ошибке/таймауте анализ продолжается на
 эвристике. Проверить: `node src/index.js config-check`.
 
 ### 8.4 Поменять стиль черновика
@@ -1006,7 +1009,9 @@ const summary = await runner.runOnce();   // summary: cardsFound, newJobs, dupli
 
 ```js
 import { KworkListingParser } from './src/parser/job-parser.js';
-const parser = new KworkListingParser({ targetCategories, categoryMapping });
+// В проде парсер создаётся без списка категорий: подписи подставляет каталог
+// (applyCategoryName в цикле). targetCategories — только для узких тестов парсера.
+const parser = new KworkListingParser({});
 const result = parser.parse(html, { sourceUrl: 'https://kwork.ru/projects' });
 ```
 
@@ -1195,7 +1200,12 @@ node --test test/texts.test.js
 ## 12c. Черновик отклика
 
 Черновик (`src/analysis/proposal-draft.js`) повторяет структуру реальных откликов
-пользователя:
+пользователя. Он готовится **только для вердиктов «подходит» и «возможно»**: для
+«не подходит» и «нужно уточнить» отклик не пишется вовсе (`compose-analysis.js` ставит
+`draft: null`, секция в сообщении не показывается). Если модель подключена и вернула свой
+`draft`, используется он; иначе — детерминированный черновик из профиля.
+
+Пример структуры:
 
 ```
 Здравствуйте!
@@ -1438,12 +1448,12 @@ node --test test/texts.test.js
 
 ### 15.5 Добавить категорию и связать с Kwork
 
-1. `config/default.json` → `targetCategories`: `id`, `label`, `priority`, `matchHint`,
-   `kworkCategoryId` (если известен).
-2. `node src/index.js categories` → посмотреть, какие `category_id` встречаются.
-3. `categoryMapping.byCategoryId` → `{ "<id Kwork>": "<ваш id>" }`, затем
-   `"confirmed": true`.
-4. `node --test test/embedded-json.test.js test/cycle.test.js`.
+Списка категорий в конфиге нет — связка «id Kwork ↔ название» живёт в каталоге сайта.
+
+1. `node src/index.js categories-refresh` — обновить `config/categories.json` с сайта.
+2. `node src/index.js categories` — сверить, какие `category_id` встречаются в выдаче.
+3. Пользователь выбирает категорию сам: `/categories <id>` или `/categories <название>`.
+4. `node --test test/category-catalog.test.js test/categories.test.js`.
 
 ### 15.6 Парсить новое поле из выдачи Kwork
 
@@ -1463,8 +1473,9 @@ LLM_API_KEY=...
 LLM_MODEL=deepseek-chat
 ```
 
-Модель может дополнить только `summary`, `notes`, `extraQuestions`. Промпт и логи адаптера —
-в `texts.json` → `model.*`. При любой ошибке анализ продолжается на эвристике.
+Модель дополняет `verdict`, `summary`, `questions`, `conditions`, `draft`, `notes`.
+Промпт и логи адаптера — в `texts.json` → `model.*`. При любой ошибке анализ продолжается
+на эвристике.
 
 ### 15.6a Изменить структуру профиля
 
@@ -1507,11 +1518,9 @@ LLM_MODEL=deepseek-chat
 
 1. **Обновить каталог с сайта:** `node src/index.js categories-refresh`
    (или `--file=page.html` без сети). Данные берутся из inline-JSON страницы списка.
-2. **Включить категорию в набор по умолчанию:** `config/default.json` → `targetCategories`
-   (`kworkCategoryId` + `label` + `subsection`) и `categoryMapping.byCategoryId`.
-3. **Дать пользователям выбрать:** ничего делать не нужно — они укажут id или название
-   командой `/categories`. Правки кода не требуются.
-4. **Проверить:** `node src/index.js categories-refresh`, затем
+2. **Дать пользователям выбрать:** ничего делать не нужно — они укажут id или название
+   командой `/categories`. Правки кода и конфига не требуются.
+3. **Проверить:** `node src/index.js categories-refresh`, затем
    `node --test test/category-catalog.test.js test/categories.test.js`.
 
 Если каталог не обновляется (сайт поменял разметку), проверьте, что в HTML страницы есть
@@ -1750,7 +1759,7 @@ LLM_MODEL=deepseek-chat
 
 ```
 1. data/categories/<userId>.json   личный выбор пользователя
-2. config.default.json             targetCategories — значения по умолчанию
+2. файла нет                        «все категории» — приходят любые задания
 ```
 
 **Команда `/categories`** (доступна всем подтверждённым):
@@ -1856,8 +1865,7 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 только по `?c=79&attr=224` и `?c=79&attr=226`. Сейчас бот опрашивает категорию целиком
 и перечисляет подразделы в сообщении.
 
-**Краткая выжимка** (`config.categoryCatalog.entries`) осталась для совместимости: она
-дополняет каталог и помечает категории «по умолчанию» (`inDefault`). Любой id вне каталога
+Любой id вне каталога
 принимается и помечается как «своя категория N».
 
 ## 18c. Защита загружаемого файла
@@ -1997,8 +2005,8 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 - при исчерпании вызов не делается, анализ идёт на эвристике, в лог пишется
   `model.logBudgetDay` / `model.logBudgetHour`;
 - сутки и час считаются в `schedule.timezone` (ваш рабочий пояс), счётчик переживает перезапуск;
-- `model.selective.mode` — `uncertain` вызывает модель только когда эвристика не уверена
-  (вердикт «возможно»/«нужно уточнить», есть риски или неизвестные поля), `always` — всегда.
+- модель вызывается для вердиктов «возможно» и «нужно уточнить»; для уверенного «подходит»
+  черновик пишет эвристика, для «не подходит» модель не вызывается (отчёт без вопросов и условий).
 
 Расход виден в `/status` и через `modelAdapter.usage`.
 
@@ -2012,10 +2020,11 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 | `openai-compatible` | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | DeepSeek, OpenRouter, локальный сервер с совместимым API |
 | `anthropic` | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | Claude |
 
-Модель может дополнить **только три поля**: `summary`, `notes`, `extraQuestions`. Вердикт,
-риски, цена и срок остаются за эвристикой — то есть ответ модели не может «переписать»
-оценку или придумать цифры. В сообщении это видно по строке источника выводов:
-«выводы приложения (эвристика)» или «выводы приложения + модель <provider>».
+Модель дополняет `verdict`, `summary`, `questions`, `conditions`, `draft`, `notes`: уточняет
+вердикт, составляет вопросы заказчику, предварительные условия и черновик. Факты, риски, цена
+и срок остаются за эвристикой — модель не может придумать цифры или факты; жёсткие блокирующие
+риски (исключённая работа, backend) она не перекрывает. В сообщении это видно по строке
+источника выводов: «выводы приложения (эвристика)» или «выводы приложения + модель <provider>».
 
 Промпт (`model.prompt`), системная строка (`model.systemPrompt`) и логи адаптера живут в
 `config/texts.json`, то есть меняются без правки кода.
@@ -2086,7 +2095,6 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 | **firstRequestNoDelay** | первый запрос после старта — без паузы |
 | **last_page / total** | метаданные выдачи: сколько страниц и заданий всего |
 | **maxPagesPerUrl** | верхняя граница автопрохода по страницам |
-| **categoryMapping** | соответствие числовых id Kwork вашим категориям |
 | **preflight** | финальная проверка перед живым запуском |
 | **bootstrap** | сборка всех зависимостей в `src/index.js` |
 | **texts** | объект текстов интерфейса, создаётся один раз на процесс из `config/texts.json` |
@@ -2117,6 +2125,5 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 | **план опроса** | список URL, которые бот запросит в цикле, по выбранным категориям |
 | **seenUsers** | кто из пользователей уже подключался (для лога «новый пользователь») |
 | **long polling** | режим getUpdates, при котором Telegram держит соединение до 30 с |
-| **бюджет модели** | лимит запросов к модели на сутки и час (`model.usage`) |
-| **selective-режим** | вызов модели только при неуверенности эвристики |
+| **бюджет модели** | лимит запросов к модели на сутки и час (`model.usage`), плюс паузы `minIntervalMs`/`cooldownMs` |
 | **OpenAI-совместимый эндпоинт** | `POST {base}/chat/completions` — то, что умеет адаптер |

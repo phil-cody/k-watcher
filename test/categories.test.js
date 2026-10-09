@@ -29,11 +29,8 @@ const { config } = loadConfig({ rootDir, env: {}, readEnvFile: false });
 const fullCatalog = await loadCategoryCatalogFile(resolve(rootDir, 'config', 'categories.json'));
 const catalog = createCategoryCatalog(config, { fullCatalog });
 
-test('каталог знает категории по умолчанию и остальные из конфига', () => {
-  // Категории по умолчанию — те, что перечислены в targetCategories.
-  // Уникальные id: одна категория может быть указана несколько раз (подразделы).
-  const expectedDefaults = [...new Set(config.targetCategories.map((category) => category.kworkCategoryId))];
-  assert.deepEqual(catalog.defaultIds, expectedDefaults);
+test('каталог целиком берётся из файла каталога сайта', () => {
+  // Списка «целевых» категорий в конфиге нет: каталог — единственный источник.
   assert.equal(catalog.byId.size >= 54, true, `в каталоге ${catalog.byId.size} категорий (ожидается не меньше 54)`);
   assert.equal(catalog.attributes.size >= 200, true, `атрибутов: ${catalog.attributes.size}`);
   // Названия берутся из полного каталога сайта: 37 — «Создание сайта», 79 — «Верстка».
@@ -42,8 +39,9 @@ test('каталог знает категории по умолчанию и о
   assert.equal(catalog.has(999999), false);
   // Для неизвестного id название всё равно формируется: пользователь может указать любой.
   assert.match(catalog.labelOf(999999), /своя категория 999999/);
-  // Категории по умолчанию идут первыми в списке.
-  assert.equal(catalog.list()[0].inDefault, true);
+  // Список категорий идёт по возрастанию id.
+  const ids = catalog.list().map((entry) => entry.id);
+  assert.deepEqual(ids, [...ids].sort((a, b) => a - b));
 });
 
 test('normalizeSelection приводит выбор к каноническому виду', () => {

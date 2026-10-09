@@ -261,10 +261,8 @@ test('описание плана содержит URL, окно, интерва
   assert.match(text, windowPattern);
   assert.match(text, new RegExp(`${config.schedule.minIntervalSeconds}–${config.schedule.maxIntervalSeconds}`));
   assert.match(text, /Europe\/Moscow/);
-  // Подпись категории берём из конфига: названия могут уточняться по данным сайта.
-  const anyLabel = config.targetCategories.find((category) => category.label)?.label;
-  assert.ok(anyLabel, 'в конфиге должны быть категории с подписями');
-  assert.ok(text.includes(anyLabel), `в плане нет подписи категории «${anyLabel}»`);
+  // Списка категорий в конфиге нет: подсказка ведёт в /categories.
+  assert.match(text, /\/categories/);
   assert.match(text, /Страницы отдельных заданий/);
 });
 

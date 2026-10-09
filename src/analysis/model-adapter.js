@@ -28,19 +28,63 @@ export class ModelUnavailableError extends Error {
   }
 }
 
+/** Вердикты, которые модель имеет право вернуть. */
+const VALID_VERDICTS = new Set(['подходит', 'возможно', 'не подходит', 'нужно уточнить']);
+
+/** Массив строк из ответа модели: чистые непустые строки, обрезанные по длине. */
+function stringList(value, limit = 8) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item) => typeof item === 'string' && item.trim()).slice(0, limit);
+}
+
 /** Разбор ответа модели, содержащего JSON-объект. */
 export function parseModelJson(content) {
   if (typeof content !== 'string' || content.trim() === '') return null;
+  // Извлечь тело из ```json ... ```, если модель оформила ответ в ограждение.
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(content);
   const candidate = (fenced ? fenced[1] : content).trim();
-  const start = candidate.indexOf('{');
-  const end = candidate.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) return null;
+
+  // Попытка 1: весь ответ — чистый JSON-объект.
   try {
-    return JSON.parse(candidate.slice(start, end + 1));
+    const parsed = JSON.parse(candidate);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
   } catch {
-    return null;
+    /* ниже пробуем вытащить объект из текста */
   }
+
+  // Попытка 2: первый сбалансированный JSON-объект { ... } с учётом строк.
+  // Надёжнее, чем «от первой { до последней }»: рассуждения модели до/после JSON не ломают разбор.
+  const start = candidate.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < candidate.length; i += 1) {
+    const ch = candidate[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') depth += 1;
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          const parsed = JSON.parse(candidate.slice(start, i + 1));
+          return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
 }
 
 /** Промпт: строгие требования к различию факта, вывода и неизвестного. */
@@ -56,8 +100,13 @@ export function buildPrompt(job, analysis, profile, { texts = null } = {}) {
       }),
       analysis: JSON.stringify({
         verdict: analysis.verdict,
-        risks: analysis.risks.map((risk) => risk.code),
-        unknown: analysis.unknown
+        risks: analysis.risks.map((risk) => ({ code: risk.code, message: risk.message })),
+        unknown: analysis.unknown,
+        facts: analysis.facts,
+        questions: analysis.questions,
+        assumptions: analysis.assumptions,
+        pricing: analysis.pricing,
+        estimate: analysis.estimate
       }),
       profile: JSON.stringify({
         headline: profile?.headline,
@@ -79,7 +128,7 @@ export function classifyProviderStatus(status, body = '') {
   const text = String(body ?? '').toLowerCase();
   if (status === 429 || /rate.?limit|quota|too many requests|resource_exhausted/.test(text)) return 'rate-limit';
   if (status === 401 || status === 403 || /invalid.?api.?key|unauthorized|permission/.test(text)) return 'auth';
-  if (/model.*(not found|does not exist)|unknown model|no such model/.test(text)) return 'model-not-found';
+  if (/model.*(not found|does not exist|no longer available|not supported|deprecated)|unknown model|no such model/.test(text)) return 'model-not-found';
   if (/context length|too many tokens|maximum context/.test(text)) return 'too-long';
   if (status >= 500) return 'provider-error';
   return 'unknown';
@@ -113,6 +162,14 @@ export function createModelAdapter({
 
   // Что именно подключено: провайдер и имя модели (для /status и /usage).
   const modelName = provider === 'openai-compatible' ? secrets.llmModel ?? null : provider === 'anthropic' ? secrets.anthropicModel ?? null : null;
+
+  // Защита от «выжигания» бесплатной квоты за один цикл: бесплатные тарифы лимитируют
+  // запросы в минуту, а не только в сутки. Соблюдаем минимальную паузу между вызовами
+  // и, получив лимит/сбой провайдера, делаем паузу-охлаждение, а не долбим дальше.
+  const minIntervalMs = Number(model.usage?.minIntervalMs) > 0 ? Number(model.usage.minIntervalMs) : 0;
+  const cooldownMs = Number(model.usage?.cooldownMs) > 0 ? Number(model.usage.cooldownMs) : 60000;
+  let lastCallAt = 0;
+  let cooldownUntil = 0;
 
   return {
     provider,
@@ -156,17 +213,15 @@ export function createModelAdapter({
 
     /**
      * Стоит ли вообще обращаться к модели для этого задания.
-     * Экономит бесплатную квоту: понятные задания и явные отказы в модели не нуждаются.
+     *
+     * Модель вызывается для «возможно» (уточняет оценку, вопросы, условия, черновик) и для
+     * «нужно уточнить» (помогает составить уточняющие вопросы). Для уверенного «подходит»
+     * черновик пишет эвристика (без затрат квоты), а для «не подходит» модель не нужна.
      */
     shouldEnrich(job, analysis) {
       if (provider === 'heuristic' || !this.available) return false;
-      const mode = model.selective?.enabled === false ? 'always' : model.selective?.mode ?? 'uncertain';
-      if (mode === 'always') return true;
-      // uncertain: зовём только там, где эвристика не уверена или видит риски.
-      if (analysis?.verdict === 'нужно уточнить' || analysis?.verdict === 'возможно') return true;
-      if (Array.isArray(analysis?.risks) && analysis.risks.length > 0) return true;
-      if (Array.isArray(analysis?.unknown) && analysis.unknown.length > 0) return true;
-      return false;
+      const verdict = analysis?.verdict;
+      return verdict === 'возможно' || verdict === 'нужно уточнить';
     },
 
     /**
@@ -177,6 +232,13 @@ export function createModelAdapter({
       if (provider === 'heuristic') return null;
       if (!this.available) {
         log('warn', t('model.logUnavailable'), { provider });
+        return null;
+      }
+
+      // Охлаждение после лимита/сбоя: не отправляем новые запросы, пока пауза не истекла.
+      const nowMs = Date.now();
+      if (nowMs < cooldownUntil) {
+        log('info', t('model.logCooldown'), { provider, seconds: Math.round((cooldownUntil - nowMs) / 1000) });
         return null;
       }
 
@@ -191,6 +253,15 @@ export function createModelAdapter({
         });
         return null;
       }
+
+      // Минимальная пауза между вызовами: бесплатный тариф лимитирует запросы в минуту.
+      if (minIntervalMs > 0) {
+        const sinceLast = Date.now() - lastCallAt;
+        if (sinceLast < minIntervalMs) {
+          await new Promise((resolve) => setTimeout(resolve, minIntervalMs - sinceLast));
+        }
+      }
+      lastCallAt = Date.now();
 
       const prompt = buildPrompt(job, analysis, profile, { texts });
       const timeoutMs = model.timeoutMs ?? 30000;
@@ -268,15 +339,21 @@ export function createModelAdapter({
           log('warn', t('model.logBadJson'), { provider });
           return null;
         }
+        const verdict = VALID_VERDICTS.has(parsed.verdict) ? parsed.verdict : null;
         const summary = typeof parsed.summary === 'string' && parsed.summary.trim() ? parsed.summary.trim() : null;
-        const extraQuestions = Array.isArray(parsed.extraQuestions)
-          ? parsed.extraQuestions.filter((item) => typeof item === 'string' && item.trim()).slice(0, 5)
-          : [];
-        const notes = Array.isArray(parsed.notes) ? parsed.notes.filter((item) => typeof item === 'string').slice(0, 5) : [];
-        return { summary, extraQuestions, notes, provider };
+        // Совместимость: старый формат называл вопросы extraQuestions.
+        const questions = stringList(parsed.questions).length > 0 ? stringList(parsed.questions) : stringList(parsed.extraQuestions, 5);
+        const conditions = stringList(parsed.conditions, 6);
+        const draft = typeof parsed.draft === 'string' && parsed.draft.trim() ? parsed.draft.trim() : null;
+        const notes = stringList(parsed.notes, 6);
+        return { verdict, summary, questions, conditions, draft, notes, provider };
       } catch (error) {
         const kind = error.details?.kind ?? (error.name === 'AbortError' ? 'timeout' : 'unknown');
         const reason = error.name === 'AbortError' ? 'timeout' : error.message;
+        // Лимит и сбой провайдера → охлаждение: не отправляем новые запросы подряд.
+        if (kind === 'rate-limit' || kind === 'provider-error') {
+          cooldownUntil = Date.now() + cooldownMs;
+        }
         // Разные подсказки для разных причин: лимит лечится паузой, ключ — заменой ключа.
         const messageKey =
           kind === 'rate-limit'

@@ -14,6 +14,7 @@ import {
   categoryLinkIdsOf
 } from '../src/parser/embedded-json-parser.js';
 import { parseListingHtml } from '../src/parser/job-parser.js';
+import { TARGET_CATEGORIES, CATEGORY_MAPPING } from './helpers/target-categories.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => readFileSync(resolve(here, 'fixtures', name), 'utf8');
@@ -167,7 +168,7 @@ test('числовые id категорий не используются бе�
   // а сам id сохраняется — по нему пользователь настраивает отображение.
   assert.equal(job.category, null);
   assert.equal(job.kworkCategoryId, 47);
-  assert.ok(job.missingFields.includes('declaredCategory'));
+  assert.ok(!job.missingFields.includes('declaredCategory'), 'категория берётся из каталога сайта, а не из карточки');
 
   // После подтверждения связи id -> категория сопоставление идёт по id.
   const confirmed = [{ ...targets[0], kworkCategoryId: 47 }];
@@ -184,7 +185,7 @@ test('без совпадений по тексту и без подтвержд
     { sourceUrl: SOURCE_URL, targetCategories: targets }
   );
   assert.equal(job.category, null);
-  assert.ok(job.missingFields.includes('declaredCategory'));
+  assert.ok(!job.missingFields.includes('declaredCategory'), 'категория берётся из каталога сайта, а не из карточки');
 });
 
 test('сопоставление по categoryLinksIdRu работает, когда id подтверждён пользователем', () => {
@@ -214,8 +215,8 @@ test('разбор не фильтрует задания до анализа �
 
 test('подтверждённый маппинг id Kwork отбирает только целевые категории', () => {
   const config = JSON.parse(readFileSync(resolve(here, '..', 'config', 'default.json'), 'utf8'));
-  const targets = config.targetCategories;
-  const mapping = config.categoryMapping.byCategoryId;
+  const targets = TARGET_CATEGORIES;
+  const mapping = CATEGORY_MAPPING;
 
   const result = parseListingHtml(fixture('listing-embedded-json.html'), {
     sourceUrl: SOURCE_URL,
@@ -254,11 +255,11 @@ test('несопоставленный id (вне профиля) не полу�
   const config = JSON.parse(readFileSync(resolve(here, '..', 'config', 'default.json'), 'utf8'));
   const job = jobFromWant(
     { id: 999, category_id: '68', name: '3Д модель для печати', description: 'Нужна модель для печати.' },
-    { sourceUrl: SOURCE_URL, targetCategories: config.targetCategories, categoryMapping: config.categoryMapping.byCategoryId }
+    { sourceUrl: SOURCE_URL, targetCategories: TARGET_CATEGORIES, categoryMapping: CATEGORY_MAPPING }
   );
   assert.equal(job.category, null, '3D-моделирование вне профиля: категория не подтверждается');
   assert.equal(job.kworkCategoryId, 68);
-  assert.ok(job.missingFields.includes('declaredCategory'));
+  assert.ok(!job.missingFields.includes('declaredCategory'), 'категория берётся из каталога сайта, а не из карточки');
 });
 
 test('текстовая подсказка не затягивает в целевую категорию чужой kwork-id', () => {
@@ -273,7 +274,7 @@ test('текстовая подсказка не затягивает в цел�
       description: 'Нужен шаблон приглашения, макет уже есть.',
       date_create: '2026-10-07 10:00:00'
     },
-    { sourceUrl: SOURCE_URL, targetCategories: config.targetCategories, categoryMapping: config.categoryMapping.byCategoryId }
+    { sourceUrl: SOURCE_URL, targetCategories: TARGET_CATEGORIES, categoryMapping: CATEGORY_MAPPING }
   );
   assert.equal(job.category, null, 'подсказка по тексту не должна перебивать числовой id');
   assert.equal(job.kworkCategoryId, 24);
@@ -281,7 +282,7 @@ test('текстовая подсказка не затягивает в цел�
   // Без числового id (например, DOM-разметка) текстовая подсказка продолжает работать.
   const withoutId = jobFromWant(
     { id: 4243, name: 'Вёрстка лендинга по макету Figma', description: 'Макет готов.' },
-    { sourceUrl: SOURCE_URL, targetCategories: config.targetCategories }
+    { sourceUrl: SOURCE_URL, targetCategories: TARGET_CATEGORIES }
   );
   assert.equal(withoutId.category?.matchedBy, 'text-hint');
 });

@@ -437,10 +437,12 @@ export function buildQuestions(job, text, profile, textsInput = null) {
   } else {
     questions.push(t('analysis.questions.layout'));
   }
-  if (job.category?.id === 'markup-by-layout' || /сверста/i.test(text)) {
+  // Вопросы определяются ТЕКСТОМ задания, а не id категории из конфига: так они
+  // остаются осмысленными для любой выбранной ниши.
+  if (/сверста/i.test(text)) {
     questions.push(t('analysis.questions.pages'));
   }
-  if (job.category?.id === 'markup-adaptation' || UNDEFINED_PATTERN.test(text)) {
+  if (UNDEFINED_PATTERN.test(text)) {
     questions.push(t('analysis.questions.edits'));
   }
   if (CMS_PATTERN.test(text)) {

@@ -236,7 +236,8 @@ export function extractJobFromCard(card, context) {
   if (!description) missingFields.push('description');
   if (!budget) missingFields.push('budget');
   if (!publishedAt?.text) missingFields.push('publishedAt');
-  if (!declaredCategory) missingFields.push('declaredCategory');
+  // Категория берётся из каталога сайта (kworkCategoryId), а не из текста карточки:
+  // отсутствие текстового поля категории не считаем «недостающим» для пользователя.
   if (!clientName) missingFields.push('clientName');
 
   const dedup = buildDedupKey({ id, url: jobUrl, title, budgetText: budget?.rawText ?? null });
@@ -300,7 +301,7 @@ export function extractJobFromJsonLd(entry, context) {
   if (!description) missingFields.push('description');
   if (!budget) missingFields.push('budget');
   if (!publishedAt?.text) missingFields.push('publishedAt');
-  if (!declaredCategory) missingFields.push('declaredCategory');
+  // Категория берётся из каталога сайта (kworkCategoryId), а не из текста карточки.
   if (!clientName) missingFields.push('clientName');
   const dedup = buildDedupKey({ id, url, title, budgetText: budget?.rawText ?? null });
 

@@ -212,6 +212,18 @@ test('сообщение явно разделяет факты, выводы и
   assert.match(message, /Рекомендация: подходит|Рекомендация: возможно|Рекомендация: не подходит/);
 });
 
+test('для «не подходит» в сообщении нет вопросов, условий и черновика', () => {
+  const job = makeJob({ title: 'Backend', description: 'Нужен backend и API с базой данных' });
+  const analysis = analyzeJob(job, realProfile);
+  assert.equal(analysis.verdict, 'не подходит');
+  const message = renderJobMessage(job, analysis);
+  assert.match(message, /Рекомендация: не подходит/);
+  assert.doesNotMatch(message, /Вопросы заказчику/);
+  assert.doesNotMatch(message, /Предварительные условия/);
+  assert.doesNotMatch(message, /Условия для оценки/);
+  assert.doesNotMatch(message, /Черновик отклика/);
+});
+
 test('сообщение размечено HTML: заголовки разделов выделены жирным', () => {
   const job = makeJob();
   const analysis = analyzeJob(job, realProfile);

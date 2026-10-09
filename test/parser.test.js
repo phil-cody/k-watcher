@@ -8,11 +8,12 @@ import { parseListingHtml, extractJobFromCard, buildDedupKey } from '../src/pars
 import { parseBudget, parseRelativeDate, extractJobId, matchTargetCategory } from '../src/parser/normalize.js';
 import { detectPageAnomaliesDetailed, describeAnomalyDiagnostics } from '../src/parser/anomaly-detector.js';
 import { decodeEntities, parseHtml, textOf, findAll } from '../src/util/html.js';
+import { TARGET_CATEGORIES } from './helpers/target-categories.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => readFileSync(resolve(here, 'fixtures', name), 'utf8');
-const config = JSON.parse(readFileSync(resolve(here, '..', 'config', 'default.json'), 'utf8'));
-const TARGETS = config.targetCategories;
+// Набор «целевых» категорий — тестовый (в рабочем конфиге его нет).
+const TARGETS = TARGET_CATEGORIES;
 const SOURCE_URL = 'https://kwork.ru/projects';
 const REFERENCE = new Date('2026-10-07T12:00:00Z');
 
@@ -83,7 +84,7 @@ test('отсутствующие поля остаются null и попада�
   assert.equal(noDescription.publishedAt, null);
   assert.ok(noDescription.missingFields.includes('description'));
   assert.ok(noDescription.missingFields.includes('publishedAt'));
-  assert.ok(noDescription.missingFields.includes('declaredCategory'));
+  assert.ok(!noDescription.missingFields.includes('declaredCategory'), 'категория берётся из каталога сайта, а не из карточки');
   assert.ok(noDescription.missingFields.includes('clientName'));
 });
 
@@ -134,7 +135,7 @@ test('nbsp в цене и пустой <time> обрабатываются бе�
   assert.equal(first.budget.currency, 'RUB');
   assert.equal(first.id, '900001');
   assert.equal(first.category, null, 'категория не угадывается без подсказок и объявленного раздела');
-  assert.ok(first.missingFields.includes('declaredCategory'));
+  assert.ok(!first.missingFields.includes('declaredCategory'), 'категория берётся из каталога сайта, а не из карточки');
 });
 
 test('изменённая структура (data-* вместо классов) разбирается без выдумывания', () => {
@@ -161,7 +162,7 @@ test('изменённая структура (data-* вместо классо�
   assert.equal(second.budget, null);
   assert.equal(second.declaredCategory, null);
   assert.ok(second.missingFields.includes('budget'));
-  assert.ok(second.missingFields.includes('declaredCategory'));
+  assert.ok(!second.missingFields.includes('declaredCategory'), 'категория берётся из каталога сайта, а не из карточки');
   assert.equal(second.publishedAt.iso, '2026-10-07T03:15:00.000Z');
 });
 

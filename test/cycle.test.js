@@ -9,6 +9,8 @@ import { dirname, resolve } from 'node:path';
 
 import { JobStore } from '../src/storage/job-store.js';
 import { KworkListingParser } from '../src/parser/job-parser.js';
+import { createCategoryCatalog } from '../src/storage/category-store.js';
+import { loadCategoryCatalogFile } from '../src/storage/category-catalog.js';
 import { createCycleRunner } from '../src/scheduler/cycle.js';
 import { analyzeAndDraft } from '../src/analysis/compose-analysis.js';
 import { renderJobMessage } from '../src/telegram/format.js';
@@ -19,6 +21,10 @@ const rootDir = resolve(here, '..');
 const config = JSON.parse(readFileSync(resolve(rootDir, 'config', 'default.json'), 'utf8'));
 const profile = JSON.parse(readFileSync(resolve(rootDir, 'config', 'performer-profile.json'), 'utf8'));
 const fixture = (name) => readFileSync(resolve(here, 'fixtures', name), 'utf8');
+// Каталог сайта — как в проде: категории и подписи берутся отсюда, не из конфига.
+const categoryCatalog = createCategoryCatalog({}, {
+  fullCatalog: await loadCategoryCatalogFile(resolve(rootDir, 'config', 'categories.json'))
+});
 
 function makeSource(htmlOrMap) {
   const map = typeof htmlOrMap === 'string' ? { '*': htmlOrMap } : htmlOrMap;
@@ -90,7 +96,8 @@ function makeRunnerConfig(dir) {
 async function makeRunner({ html, notifier, logger = null, configPatch = {}, source = null }) {
   const dir = await mkdtemp(join(tmpdir(), 'kwork-cycle-'));
   const store = await new JobStore({ dataDir: dir }).init();
-  const parser = new KworkListingParser({ targetCategories: config.targetCategories });
+  // Парсер как в проде: списка категорий нет, подписи подставляет каталог в цикле.
+  const parser = new KworkListingParser({});
   const base = makeRunnerConfig(dir);
   // source мержим вложенно: иначе патч одного поля затирает pagination/allowedUrls.
   const merged = {
@@ -100,16 +107,15 @@ async function makeRunner({ html, notifier, logger = null, configPatch = {}, sou
       ...base.source,
       ...(configPatch.source ?? {}),
       // Вложенные объекты мержим отдельно: иначе патч одного поля затирает остальные.
-      pagination: { ...(base.source.pagination ?? {}), ...(configPatch.source?.pagination ?? {}) },
-      categoryMapping: { ...(base.source.categoryMapping ?? {}), ...(configPatch.source?.categoryMapping ?? {}) }
-    },
-    categoryMapping: { ...(base.categoryMapping ?? {}), ...(configPatch.categoryMapping ?? {}) }
+      pagination: { ...(base.source.pagination ?? {}), ...(configPatch.source?.pagination ?? {}) }
+    }
   };
   const runner = createCycleRunner({
     source: source ?? makeSource(html),
     parser,
     store,
     profile,
+    categoryCatalog,
     notifier,
     config: merged,
     logger
@@ -156,61 +162,32 @@ test('карточка обрабатывается один раз, повто�
   }
 });
 
-test('без подтверждённого маппинга категорий данные не отбрасываются молча', async () => {
-  const html = fixture('listing-missing-fields.html');
+test('подпись категории берётся из каталога сайта, карточки не отбрасываются', async () => {
+  const html = fixture('listing-embedded-json.html');
   const notifier = makeNotifier();
-  const dir = await mkdtemp(join(tmpdir(), 'kwork-cycle-'));
+  const { runner, cleanup } = await makeRunner({ html, notifier });
   try {
-    const store = await new JobStore({ dataDir: dir }).init();
-    const parser = new KworkListingParser({ targetCategories: config.targetCategories });
-    const runner = createCycleRunner({
-      source: makeSource(html),
-      parser,
-      store,
-      profile,
-      notifier,
-      config: { ...makeRunnerConfig(dir), categoryMapping: { confirmed: false, byCategoryId: {}, byCategoryLinkId: {} } },
-      logger: null
-    });
     const summary = await runner.runOnce();
-    assert.equal(summary.cardsFound, 2);
-    assert.equal(summary.categoryFilterConfirmed, false);
-    // Отбор делает персональный фильтр категорий, а не глобальный список:
-    // при неподтверждённом маппинге ничего не отбрасывается.
-    assert.equal(summary.outOfTargetCategories, 0, 'при неподтверждённом маппинге ничего не отбрасывается');
-    assert.equal(summary.newJobs, 2, 'оба задания уходят с пометкой о неподтверждённой категории');
-    assert.equal(summary.uncategorized.length, 2);
+    assert.equal(summary.cardsFound, 4);
+    assert.equal(summary.newJobs, 4, 'все карточки из выдачи обрабатываются');
+    assert.equal(summary.outOfTargetCategories, 0, 'все числовые id есть в каталоге сайта');
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await cleanup();
   }
 });
 
-test('при подтверждённом маппинге карточки вне выбранных категорий не отправляются', async () => {
+test('карточка без числового id не отбрасывается, а попадает в «не определено»', async () => {
   const html = fixture('listing-missing-fields.html');
   const notifier = makeNotifier();
-  const dir = await mkdtemp(join(tmpdir(), 'kwork-cycle-'));
+  const { runner, cleanup } = await makeRunner({ html, notifier });
   try {
-    const store = await new JobStore({ dataDir: dir }).init();
-    const parser = new KworkListingParser({ targetCategories: config.targetCategories });
-    const runner = createCycleRunner({
-      source: makeSource(html),
-      parser,
-      store,
-      profile,
-      notifier,
-      config: {
-        ...makeRunnerConfig(dir),
-        categoryMapping: { confirmed: true, byCategoryId: {}, byCategoryLinkId: {} }
-      },
-      logger: null
-    });
     const summary = await runner.runOnce();
-    assert.equal(summary.categoryFilterConfirmed, true);
-    assert.equal(summary.inTargetCategories, 1, '«Сбор данных с сайта» не входит в выбранные категории');
-    assert.equal(summary.outOfTargetCategories, 1);
-    assert.equal(summary.newJobs, 1);
+    assert.equal(summary.cardsFound, 2);
+    assert.equal(summary.outOfTargetCategories, 2, 'нет category_id — категория не определена');
+    assert.equal(summary.uncategorized.length, 2);
+    assert.equal(summary.newJobs, 2, 'задание без категории всё равно уходит пользователю');
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    await cleanup();
   }
 });
 
@@ -372,7 +349,7 @@ function splitJobsMessages(chunks) {
 }
 
 test('анализ с эвристикой не делает сетевых вызовов и помечает провайдера', async () => {
-  const parser = new KworkListingParser({ targetCategories: config.targetCategories });
+  const parser = new KworkListingParser({});
   const parsed = parser.parse(fixture('listing-standard.html'), { sourceUrl: 'https://kwork.ru/projects' });
   const analysis = await analyzeAndDraft(parsed.jobs[0], profile, { modelAdapter: null, config: { ...config, dataDir: tmpdir() } });
   assert.equal(analysis.modelUsed, false);
@@ -394,7 +371,7 @@ test('пропавшие из выдачи задания удаляются и�
   const dir = await mkdtemp(join(tmpdir(), 'kwork-cycle-'));
   try {
     const store = await new JobStore({ dataDir: dir }).init();
-    const parser = new KworkListingParser({ targetCategories: config.targetCategories });
+    const parser = new KworkListingParser({});
     const runner = createCycleRunner({
       source: { fetchPage: async (url) => ({ html: currentHtml, status: 200, url }) },
       parser,
@@ -427,7 +404,7 @@ test('при ошибке источника индекс не очищаетс�
   const dir = await mkdtemp(join(tmpdir(), 'kwork-cycle-'));
   try {
     const store = await new JobStore({ dataDir: dir }).init();
-    const parser = new KworkListingParser({ targetCategories: config.targetCategories });
+    const parser = new KworkListingParser({});
     let mode = 'ok';
     const runner = createCycleRunner({
       source: {
@@ -461,7 +438,7 @@ test('пустая страница не помечается как пропа�
   const dir = await mkdtemp(join(tmpdir(), 'kwork-cycle-'));
   try {
     const store = await new JobStore({ dataDir: dir }).init();
-    const parser = new KworkListingParser({ targetCategories: config.targetCategories });
+    const parser = new KworkListingParser({});
     let mode = 'ok';
     const runner = createCycleRunner({
       source: {
