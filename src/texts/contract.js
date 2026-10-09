@@ -75,6 +75,8 @@ const WITH_PLACEHOLDERS = [
   { path: 'source.httpUnexpected', placeholders: ['status'] },
   { path: 'source.anomaly', placeholders: ['kind', 'reason'] },
   { path: 'source.urlNotAllowed', placeholders: ['errors'] },
+  { path: 'source.redirectNotAllowed', placeholders: ['url', 'location'] },
+  { path: 'source.responseTooLarge', placeholders: ['bytes', 'limit'] },
   { path: 'source.urlNotDeclared', placeholders: ['url'] },
   { path: 'source.parallelDenied' },
 
@@ -82,6 +84,7 @@ const WITH_PLACEHOLDERS = [
   { path: 'scheduler.intervalChooseFailed' },
   { path: 'scheduler.intervalInvalidOrder' },
   { path: 'scheduler.outsideWindow', placeholders: ['start', 'end', 'timezone'] },
+  { path: 'scheduler.invalidWindow', placeholders: ['start', 'end', 'timezone'] },
   { path: 'scheduler.awaitWindow', placeholders: ['start', 'end', 'timezone'] },
   { path: 'scheduler.firstRequestNoDelay' },
   { path: 'scheduler.firstRequestAfterLongGap', placeholders: ['seconds'] },
@@ -138,7 +141,6 @@ const WITH_PLACEHOLDERS = [
   { path: 'logs.notificationsOn' },
   { path: 'logs.notificationsOff' },
   { path: 'logs.dashboardAvailable', placeholders: ['url'] },
-  { path: 'logs.dashboardPublicWarning', placeholders: ['host'] },
   { path: 'logs.dashboardReadOnly' },
   { path: 'window.opened.header' },
   { path: 'window.opened.schedule', placeholders: ['start', 'end', 'timezone', 'min', 'max'] },
@@ -383,8 +385,6 @@ const WITH_PLACEHOLDERS = [
   // --- Онбординг, доступ и профили ---
   { path: 'commands.onboarding.welcomeBody', isArray: true },
   { path: 'commands.onboarding.registeredTitle' },
-  { path: 'commands.onboarding.connectedTitle' },
-  { path: 'commands.onboarding.connectedBody', isArray: true },
   { path: 'commands.onboarding.usersTitle' },
   { path: 'commands.onboarding.usersOwner', placeholders: ['who'] },
   { path: 'commands.onboarding.usersApproved', placeholders: ['list'] },
@@ -398,15 +398,11 @@ const WITH_PLACEHOLDERS = [
   { path: 'commands.onboarding.profileInvalid', placeholders: ['reason'] },
   { path: 'commands.onboarding.profileMissing' },
   { path: 'commands.onboarding.profileRemoved' },
-  { path: 'commands.onboarding.profileDefault' },
   { path: 'commands.onboarding.profileNoTemplate' },
-  { path: 'commands.onboarding.profileFileTooBig', placeholders: ['limit'] },
   { path: 'commands.onboarding.profileDownloadFailed', placeholders: ['reason'] },
   { path: 'commands.onboarding.profileReminder' },
   { path: 'commands.onboarding.profileSourcePersonal' },
-  { path: 'commands.onboarding.profileSourceFallback' },
   { path: 'commands.onboarding.profileSourceNone' },
-  { path: 'commands.onboarding.profileNotUsable' },
   { path: 'commands.onboarding.profileRateLimited', placeholders: ['seconds'] },
   { path: 'commands.categories.byText' },
   { path: 'commands.categories.resolved', placeholders: ['list'] },
@@ -450,18 +446,11 @@ const WITH_PLACEHOLDERS = [
   { path: 'commands.plan.singleRequest' },
   { path: 'commands.plan.pagesAuto', placeholders: ['max'] },
   { path: 'commands.plan.pagesSingle' },
-  { path: 'commands.plan.allowedUrls' },
-  { path: 'commands.plan.urlEntry', placeholders: ['state', 'url', 'label'] },
-  { path: 'commands.plan.urlEntryNoLabel', placeholders: ['state', 'url'] },
-  { path: 'commands.plan.urlEnabled' },
-  { path: 'commands.plan.urlDisabled' },
-  { path: 'commands.plan.urlExpectedCategory', placeholders: ['category'] },
-  { path: 'commands.plan.urlConfirmation', placeholders: ['text'] },
   { path: 'commands.plan.categories' },
+  { path: 'commands.plan.baseUrl', placeholders: ['url'] },
   { path: 'commands.plan.pollPlanAll', placeholders: ['count'] },
   { path: 'commands.plan.pollPlanCategories', placeholders: ['count'] },
   { path: 'commands.plan.pollPlanUrl', placeholders: ['url', 'reason'] },
-  { path: 'commands.plan.pollPlanSkipped', placeholders: ['url'] },
   { path: 'commands.plan.permission', placeholders: ['status'] },
   { path: 'commands.plan.permissionNone' },
   { path: 'commands.plan.scope', placeholders: ['text'] },
@@ -552,7 +541,6 @@ export const TEXT_CONTRACT = {
     ...paths([
       'commands.start',
       'commands.onboarding.welcomeBody',
-      'commands.onboarding.connectedBody',
       'cli.help',
       'model.prompt'
     ])
@@ -562,7 +550,7 @@ export const TEXT_CONTRACT = {
     { path: 'analysis.verdicts', keys: ['подходит', 'возможно', 'не подходит', 'нужно уточнить'] },
     {
       path: 'commands.plan.pollPlanReasons',
-      keys: ['no-selection', 'all-categories', 'category', 'declared']
+      keys: ['no-selection', 'all-categories', 'category']
     },
     { path: 'analysis.verdictLabels', keys: ['подходит', 'возможно', 'не подходит', 'нужно уточнить'] },
     {

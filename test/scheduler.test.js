@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path';
 
 import { PollingScheduler, SCHEDULER_STATE } from '../src/scheduler/scheduler.js';
 import { SourceError, STOP_REASONS, fetchSinglePage, KworkHtmlSource } from '../src/source/kwork-html-source.js';
-import { chooseIntervalMs, isWithinWindow, nextWindowStart, planNextRequest, zonedMinutesOfDay } from '../src/util/time.js';
+import { chooseIntervalMs, isWithinWindow, nextWindowEnd, nextWindowStart, planNextRequest, zonedMinutesOfDay } from '../src/util/time.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -31,6 +31,28 @@ test('chooseIntervalMs всегда попадает в 240–600 секунд �
   }
   assert.equal(chooseIntervalMs(240, 600, () => 0), 240000);
   assert.equal(chooseIntervalMs(240, 600, () => 0.999999999), 600000);
+});
+
+test('nextWindowEnd возвращает момент закрытия, nextWindowStart — открытия', () => {
+  // baseSchedule: 05:00–19:00 MSK.
+  const after = msk(18, 57);
+  assert.equal(nextWindowEnd(after, baseSchedule).toISOString(), msk(19, 0).toISOString());
+  assert.equal(nextWindowStart(after, baseSchedule).toISOString(), msk(5, 0, 8).toISOString());
+  // После закрытия следующий конец — завтра.
+  assert.equal(nextWindowEnd(msk(20, 0), baseSchedule).toISOString(), msk(19, 0, 8).toISOString());
+});
+
+test('пауза, выводящая за окно, будит на закрытии, а не на следующем открытии', () => {
+  const decision = planNextRequest({
+    now: msk(18, 57),
+    schedule: baseSchedule,
+    chooseInterval: () => 600000
+  });
+  assert.equal(decision.action, 'nextWindow');
+  // 18:57 + 10 мин = 19:07 — за окном. Спим до 19:00 (180 с), а не до 05:00.
+  assert.equal(decision.waitMs, 3 * 60 * 1000);
+  // А «когда откроется» по-прежнему сообщается — для планировщика.
+  assert.equal(decision.nextWindowStart.toISOString(), msk(5, 0, 8).toISOString());
 });
 
 test('planNextRequest выбирает новую паузу внутри окна', () => {
@@ -85,14 +107,15 @@ test('nextWindowStart возвращает ближайшее открытие �
   assert.equal(next.toISOString(), msk(5, 0, 8).toISOString());
 });
 
-function makeScheduler({ now, random = () => 0.5, onCycle, sleep = async () => {} }) {
+function makeScheduler({ now, random = () => 0.5, onCycle, sleep = async () => {}, onWindowChange = null }) {
   return new PollingScheduler({
     schedule: baseSchedule,
     source: null,
     onCycle,
     now,
     random,
-    sleep
+    sleep,
+    onWindowChange
   });
 }
 
@@ -212,6 +235,37 @@ test('команды pause и resume меняют состояние', async () 
   scheduler.resume();
   assert.equal(scheduler.status, SCHEDULER_STATE.IDLE);
   assert.equal(scheduler.pausedByUser, false);
+});
+
+test('run() не завершается на паузе и продолжается после resume', async () => {
+  let calls = 0;
+  const scheduler = makeScheduler({
+    now: () => msk(10, 0),
+    onCycle: async () => {
+      calls += 1;
+      return { structureOk: true };
+    },
+    // Короткий реальный сон, чтобы цикл не крутился вхолостую.
+    sleep: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1));
+    }
+  });
+
+  scheduler.pause('по команде пользователя');
+  const runPromise = scheduler.run();
+
+  // Несколько итераций на паузе: запросов нет, но цикл жив.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(calls, 0, 'на паузе запросы не выполняются');
+  assert.equal(scheduler.running, true, 'цикл должен работать на паузе, а не завершаться');
+
+  // Снимаем паузу — цикл должен сам продолжить и сделать запрос.
+  scheduler.resume();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(calls >= 1, 'после resume цикл должен выполнить запрос без перезапуска');
+
+  scheduler.stopLoop();
+  await runPromise;
 });
 
 test('после 19:00 tick не выполняет запрос', async () => {
@@ -391,52 +445,28 @@ test('fetchSinglePage сообщает Retry-After при 429', async () => {
   );
 });
 
-test('fetchSinglePage принимает страницы подтверждённого URL (?page=N)', async () => {
+test('fetchSinglePage принимает страницы списка (?page=N, ?c=, ?attr=)', async () => {
   const requested = [];
-  const allowedUrls = [
-    { url: 'https://kwork.ru/projects', enabled: true },
-    { url: 'https://kwork.ru/projects?c=38', enabled: true }
-  ];
   const fetchImpl = async (url) => {
     requested.push(url);
     return { ok: true, status: 200, headers: { get: () => null }, text: async () => '<html><body><main></main></body></html>' };
   };
-  for (const url of ['https://kwork.ru/projects?page=2', 'https://kwork.ru/projects?c=38&page=3']) {
-    await fetchSinglePage(url, { userAgent: 't', allowedUrls, fetchImpl });
+  for (const url of ['https://kwork.ru/projects?page=2', 'https://kwork.ru/projects?c=38&page=3', 'https://kwork.ru/projects?c=99&attr=224']) {
+    await fetchSinglePage(url, { userAgent: 't', fetchImpl });
   }
-  assert.deepEqual(requested, ['https://kwork.ru/projects?page=2', 'https://kwork.ru/projects?c=38&page=3']);
+  assert.deepEqual(requested, [
+    'https://kwork.ru/projects?page=2',
+    'https://kwork.ru/projects?c=38&page=3',
+    'https://kwork.ru/projects?c=99&attr=224'
+  ]);
 
-  // Чужая категория или лишний параметр — отклоняются до сети.
-  for (const url of ['https://kwork.ru/projects?c=99&page=2', 'https://kwork.ru/projects?c=38&page=3&evil=1']) {
+  // Мусорные параметры и attr без c отклоняются до сети.
+  for (const url of ['https://kwork.ru/projects?c=38&page=3&evil=1', 'https://kwork.ru/projects?attr=224']) {
     await assert.rejects(
-      () => fetchSinglePage(url, { userAgent: 't', allowedUrls, fetchImpl }),
+      () => fetchSinglePage(url, { userAgent: 't', fetchImpl }),
       (error) => error.stopReason === STOP_REASONS.CONFIG
     );
   }
-});
-
-test('fetchSinglePage принимает подтверждённый URL категории с ?c=', async () => {
-  let requested = null;
-  const allowedUrls = [{ url: 'https://kwork.ru/projects?c=79', enabled: true }];
-  await fetchSinglePage('https://kwork.ru/projects?c=79', {
-    userAgent: 't',
-    allowedUrls,
-    fetchImpl: async (url) => {
-      requested = url;
-      return { ok: true, status: 200, headers: { get: () => null }, text: async () => '<html><body><main></main></body></html>' };
-    }
-  });
-  assert.equal(requested, 'https://kwork.ru/projects?c=79');
-
-  await assert.rejects(
-    () =>
-      fetchSinglePage('https://kwork.ru/projects?c=999', {
-        userAgent: 't',
-        allowedUrls,
-        fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => '' })
-      }),
-    (error) => error.stopReason === STOP_REASONS.CONFIG
-  );
 });
 
 test('fetchSinglePage отправляет GET без cookies и заголовков авторизации', async () => {
@@ -461,7 +491,6 @@ test('KworkHtmlSource запрещает параллельные запросы
     release = resolvePromise;
   });
   const source = new KworkHtmlSource({
-    allowedUrls: [{ url: 'https://kwork.ru/projects', enabled: true }],
     userAgent: 't',
     fetchImpl: async () => {
       await gate;
@@ -479,17 +508,37 @@ test('KworkHtmlSource запрещает параллельные запросы
   assert.equal(source.requestCount, 1);
 });
 
-test('KworkHtmlSource показывает план запрашиваемых URL', () => {
-  const source = new KworkHtmlSource({
-    allowedUrls: [{ id: 'projects-all', url: 'https://kwork.ru/projects', label: 'Список', enabled: true }],
-    userAgent: 't'
+test('пересечение границы во время ожидания шлёт «закрылось», затем «открылось»', async () => {
+  const events = [];
+  let nowValue = msk(18, 57);
+  const scheduler = makeScheduler({
+    now: () => nowValue,
+    onCycle: async () => ({ structureOk: true }),
+    onWindowChange: async (event) => events.push(event.direction)
   });
-  const plan = source.describePlan();
-  assert.equal(plan.length, 1);
-  assert.equal(plan[0].url, 'https://kwork.ru/projects');
-  assert.equal(plan[0].pages, 1);
-});
+  // «Открылось» уже зафиксировано в начале дня.
+  scheduler.windowOpen = true;
 
+  // Первый тик: запросов ещё не было → immediate (запрос сразу).
+  const first = await scheduler.tick();
+  assert.equal(first.action, 'requested');
+
+  // Второй тик: запрос уже был, интервал (420 с при random=0.5) выводит за 19:00 → nextWindow.
+  const second = await scheduler.tick();
+  assert.equal(second.action, 'nextWindow');
+  assert.deepEqual(events, []);
+
+  // run() проспал до 19:00 и снова вызвал tick(): граница закрытия пересечена.
+  nowValue = msk(19, 0);
+  const third = await scheduler.tick();
+  assert.deepEqual(events, ['closed']);
+  assert.equal(third.action, 'paused', 'после закрытия окна — пауза до утра');
+
+  // Утром окно открылось заново.
+  nowValue = msk(5, 0, 8);
+  await scheduler.tick();
+  assert.deepEqual(events, ['closed', 'opened']);
+});
 
 test('уведомление об открытии окна отправляется один раз на переход', async () => {
   const events = [];

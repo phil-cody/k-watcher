@@ -1,7 +1,8 @@
 /**
  * Работа со временем и окном опроса в заданном часовом поясе.
  *
- * Ключевое требование: окно 05:00–19:00 считается в Europe/Moscow, а не по
+ * Ключевое требование: окно опроса считается в своём часовом поясе (по умолчанию
+ * Europe/Moscow), а не по локальным часам машины.
  * локальным часам машины. Поэтому все проверки идут через Intl с явной зоной.
  */
 
@@ -112,6 +113,18 @@ export function nextWindowStart(after, { timezone, windowStart }) {
   throw new Error('Не удалось вычислить начало следующего окна');
 }
 
+/** Следующий момент закрытия окна строго после указанного времени. */
+export function nextWindowEnd(after, { timezone, windowEnd }) {
+  const end = parseClock(windowEnd);
+  if (end === null) throw new Error(`Некорректное время конца окна: ${windowEnd}`);
+  for (let shift = 0; shift <= 2; shift += 1) {
+    const day = zonedDateString(new Date(after.getTime() + shift * 86400000), timezone);
+    const candidate = zonedTimeFromDayAndMinutes(day, end, timezone);
+    if (candidate.getTime() > after.getTime()) return candidate;
+  }
+  throw new Error('Не удалось вычислить конец следующего окна');
+}
+
 /**
  * Случайная пауза в диапазоне [minIntervalSeconds, maxIntervalSeconds] — включительно.
  * newInterval — инъекция генератора для тестов.
@@ -155,11 +168,25 @@ export function planNextRequest({
     return value === path ? fallback : value;
   };
   const { timezone, windowStart, windowEnd } = schedule;
+  const start = parseClock(windowStart);
   const end = parseClock(windowEnd);
+
+  // Некорректное окно конфигурация обязана отклонить; страховка — не падать и не
+  // выбирать неверную ветку из-за null (null > start === false).
+  if (start === null || end === null) {
+    return {
+      action: 'paused',
+      nextWindowStart: null,
+      reason: t(
+        'scheduler.invalidWindow',
+        { start: windowStart, end: windowEnd, timezone },
+        `Некорректное окно опроса ${windowStart}–${windowEnd} (${timezone}): запросы приостановлены.`
+      )
+    };
+  }
 
   if (!isWithinWindow(now, schedule)) {
     const minutes = zonedMinutesOfDay(now, timezone);
-    const start = parseClock(windowStart);
     const afterEnd = end > start ? minutes >= end : minutes < start;
     if (afterEnd) {
       return {
@@ -203,13 +230,15 @@ function chooseAndValidate(now, schedule, chooseInterval, t = (path, params, fal
   const plannedAt = new Date(now.getTime() + intervalMs);
 
   if (!isWithinWindow(plannedAt, schedule)) {
-    const start = nextWindowStart(now, schedule);
+    // Пауза вывела бы запрос за конец окна. Спим не до следующего открытия (05:00),
+    // а до ЗАКРЫТИЯ текущего окна: иначе проспим границу и не отправим «окно закрылось».
+    const end = nextWindowEnd(now, schedule);
     return {
       action: 'nextWindow',
-      waitMs: start.getTime() - now.getTime(),
+      waitMs: end.getTime() - now.getTime(),
       intervalMs,
       plannedAt,
-      nextWindowStart: start,
+      nextWindowStart: nextWindowStart(now, schedule),
       reason: t(
         'scheduler.pauseWouldExceedWindow',
         { seconds: Math.round(intervalMs / 1000), end: schedule.windowEnd, timezone: schedule.timezone },

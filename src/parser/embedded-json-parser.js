@@ -14,6 +14,7 @@
  */
 
 import { cleanText, matchTargetCategory } from './normalize.js';
+import { zoneOffsetMinutes } from '../util/time.js';
 
 /** Извлечение объекта с массивом wants из строки с балансировкой скобок и строк. */
 export function extractEmbeddedWantsPayload(html) {
@@ -114,8 +115,9 @@ export function parseEmbeddedDate(value, { timezone = 'Europe/Moscow' } = {}) {
     return { text, iso: null, origin: 'fact:text', confidence: 'unknown', timezone };
   }
   const [, y, m, d, hh, mm, ss = '00'] = match;
-  const offset = zoneOffsetMinutes(`${y}-${m}-${d} ${hh}:${mm}:${ss}`, timezone);
-  const utcMs = Date.UTC(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss)) - offset * 60000;
+  const wallGuess = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss)));
+  const offset = zoneOffsetMinutes(wallGuess, timezone);
+  const utcMs = wallGuess.getTime() - offset * 60000;
   return {
     text,
     iso: new Date(utcMs).toISOString(),
@@ -123,30 +125,6 @@ export function parseEmbeddedDate(value, { timezone = 'Europe/Moscow' } = {}) {
     confidence: 'exact',
     timezone
   };
-}
-
-/** Смещение зоны в минутах для «настенного» времени без указания зоны. */
-function zoneOffsetMinutes(localStamp, timeZone) {
-  const [datePart, timePart] = localStamp.split(' ');
-  const [y, m, d] = datePart.split('-').map(Number);
-  const [hh, mm, ss] = timePart.split(':').map(Number);
-  const utcGuess = Date.UTC(y, m - 1, d, hh, mm, ss);
-  const dtf = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hour12: false,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-  const parts = {};
-  for (const { type, value } of dtf.formatToParts(new Date(utcGuess))) {
-    if (type !== 'literal') parts[type] = Number(value);
-  }
-  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour % 24, parts.minute, parts.second);
-  return Math.round((asUtc - utcGuess) / 60000);
 }
 
 /** Бюджет из полей priceLimit / possiblePriceLimit / isHigherPrice. */
@@ -175,7 +153,11 @@ export function categoryLinkIdsOf(item) {
   const raw = item?.categoryLinksIdRu;
   if (raw === undefined || raw === null) return [];
   const list = Array.isArray(raw) ? raw : [raw];
-  return list.map((value) => Number(value)).filter((value) => Number.isFinite(value));
+  // Важно: Number(null) === 0, поэтому отбрасываем пустые значения до приведения.
+  return list
+    .filter((value) => value !== null && value !== undefined && value !== '')
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0);
 }
 
 /** Категория задания: сначала по category_id, затем по отображению categoryLinksIdRu. */
@@ -276,7 +258,7 @@ export function jobFromWant(item, context) {
         }
       : null,
     declaredCategory: category ? category.label : null,
-    kworkCategoryId: item?.category_id === undefined ? null : Number(item.category_id),
+    kworkCategoryId: item?.category_id === undefined || item?.category_id === null ? null : Number(item.category_id),
     categoryLinkIds: categoryLinkIdsOf(item),
     client,
     extra: {
@@ -310,11 +292,7 @@ export function parseEmbeddedJobs(html, context = {}) {
   if (payload.items.length === 0) {
     return { jobs: [], strategy: null, warnings: ['Встроенный JSON с массивом wants не найден.'] };
   }
-  const items = context.filterByCategoryLinkId
-    ? payload.items.filter((item) =>
-        categoryLinkIdsOf(item).some((linkId) => Boolean(context.categoryMapping?.[String(linkId)]))
-      )
-    : payload.items;
+  const items = payload.items;
   const jobs = items.map((item) => jobFromWant(item, { ...context, strategyId: payload.strategy }));
   if (payload.candidates > 1) {
     warnings.push(`Найдено несколько массивов wants (${payload.candidates}); использован самый крупный.`);

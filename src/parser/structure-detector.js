@@ -15,8 +15,6 @@ import { findAll, classesOf, textOf } from '../util/html.js';
 import { isProjectLink } from './normalize.js';
 
 const TITLE_CLASS = /want[-_]?title|project[-_]?title|card[-_]?title|__title$|(^|[-_])title([-_]|$)/i;
-const DESCRIPTION_CLASS = /want[-_]?description|project[-_]?description|card[-_]?description|(^|[-_])desc(ription)?([-_]|$)/i;
-
 function hasClassMatching(node, pattern) {
   return classesOf(node).some((name) => pattern.test(name));
 }
@@ -191,7 +189,7 @@ export function detectDomStructure(root) {
   filtered.sort((a, b) => a.node.order - b.node.order);
 
   if (filtered.length === 0) {
-    return { strategy: null, description: null, nodes: [], matchedStrategies, primaryStrategy: null };
+    return { strategy: null, description: null, nodes: [], matchedStrategies };
   }
 
   const primary = filtered.reduce((best, entry) => (entry.priority < best.priority ? entry : best), filtered[0]);
@@ -200,8 +198,7 @@ export function detectDomStructure(root) {
     description: primary.description,
     nodes: filtered.map((entry) => entry.node),
     nodeStrategies: filtered.map((entry) => entry.strategy),
-    matchedStrategies,
-    primaryStrategy: primary.strategy
+    matchedStrategies
   };
 }
 
@@ -215,4 +212,4 @@ function isAncestor(possibleAncestor, node) {
 }
 
 /** Признаки блокировки/проверки: детектор вынесен в anomaly-detector.js. */
-export { detectPageAnomalies, detectPageAnomaliesDetailed, hasHardAnomaly, describeAnomalyDiagnostics, ANOMALY } from './anomaly-detector.js';
+export { detectPageAnomaliesDetailed } from './anomaly-detector.js';

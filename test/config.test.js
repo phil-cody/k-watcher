@@ -28,52 +28,39 @@ test('рабочая конфигурация загружается и прох
   assert.equal(config.schedule.minIntervalSeconds >= 240, true, 'минимум не может быть меньше 240 с');
   assert.equal(config.schedule.maxIntervalSeconds <= 600, true, 'максимум не может быть больше 600 с');
   assert.equal(config.schedule.firstRequestNoDelay, true, 'первый запрос после старта идёт без паузы');
-  // Список URL пользователь может менять: проверяем структуру, а не конкретный набор.
-  assert.ok(config.source.allowedUrls.length >= 1, 'нужен хотя бы один разрешённый URL');
-  for (const entry of config.source.allowedUrls) {
-    assert.match(entry.url, /^https:\/\/kwork\.ru\/projects(\?c=\d+)?$/, `недопустимый URL: ${entry.url}`);
-    assert.equal(entry.pagination, false);
-    assert.equal(Number(entry.pages) >= 1, true);
-  }
+  // Базовый адрес источника: общий список заданий, категории добавляются параметрами.
+  assert.equal(config.source.baseUrl, 'https://kwork.ru');
   assert.equal(config.model.provider, 'heuristic');
   assert.equal(profile.pricing.minimum_project_price, 2000);
   assert.equal(validation.ok, true, validation.errors.join('; '));
 });
 
-test('URL категорий с ?c= разрешены только если перечислены в конфигурации', () => {
-  const { config } = loadIsolated();
-  const declared = config.source.allowedUrls.map((entry) => entry.url);
-  // Объявленные URL и их страницы должны быть разрешены — набор берём из конфига.
-  for (const url of declared) {
-    assert.equal(validateSourceUrl(url, { allowedUrls: declared }).ok, true, `${url} должен быть разрешён`);
-    for (const page of [2, 5]) {
-      const withPage = `${url}${url.includes('?') ? '&' : '?'}page=${page}`;
-      assert.equal(
-        validateSourceUrl(withPage, { allowedUrls: declared }).ok,
-        true,
-        `${withPage} должен быть разрешён как страница`
-      );
-      // Порядок параметров не важен: ?page=2&c=79 — та же страница, что ?c=79&page=2.
-      const reversed = url.includes('?c=')
-        ? `https://kwork.ru/projects?page=${page}&c=${url.split('c=')[1]}`
-        : `https://kwork.ru/projects?page=${page}`;
-      assert.equal(validateSourceUrl(reversed, { allowedUrls: declared }).ok, true, `${reversed} должен быть разрешён`);
-    }
-  }
-
-  // Необъявленные параметры, чужие категории и мусорные page запрещены.
+test('URL категорий и страниц разрешены по структуре, без белого списка', () => {
+  // Список категорий приходит из каталога: любой положительный id по пути /projects допустим.
   for (const url of [
-    'https://kwork.ru/projects?c=999',
-    'https://kwork.ru/projects?c=999&page=2',
-    'https://kwork.ru/projects?c=38&page=2&evil=1',
-    'https://kwork.ru/projects?page=0',
-    'https://kwork.ru/projects?page=abc'
+    'https://kwork.ru/projects',
+    'https://kwork.ru/projects?c=79',
+    'https://kwork.ru/projects?c=38&page=2',
+    'https://kwork.ru/projects?c=79&attr=224',
+    'https://kwork.ru/projects?c=79&attr=224&page=3',
+    'https://kwork.ru/projects?page=2'
   ]) {
-    assert.equal(validateSourceUrl(url, { allowedUrls: declared }).ok, false, `${url} должен быть отклонён`);
+    assert.equal(validateSourceUrl(url).ok, true, `${url} должен быть разрешён`);
   }
 
-  // Страница задания запрещена при любых обстоятельствах.
-  assert.equal(validateSourceUrl('https://kwork.ru/projects/12345/some-job', { allowedUrls: declared }).ok, false);
+  // Запрещено: чужой путь, мусорные параметры, нечисловые значения, attr без c, повтор параметра.
+  for (const url of [
+    'https://kwork.ru/projects?c=999&evil=1',
+    'https://kwork.ru/projects?c=abc',
+    'https://kwork.ru/projects?page=0',
+    'https://kwork.ru/projects?page=abc',
+    'https://kwork.ru/projects?attr=224',
+    'https://kwork.ru/projects?c=38&c=79',
+    'https://kwork.ru/projects/12345/some-job',
+    'https://kwork.ru/api/v1/projects'
+  ]) {
+    assert.equal(validateSourceUrl(url).ok, false, `${url} должен быть отклонён`);
+  }
 });
 
 test('первый запрос без паузы не отменяет выдержку после перезапуска', () => {
@@ -132,31 +119,26 @@ test('живой источник требует включения и подт�
 
 test('пейджинация без подтверждения запрещена', () => {
   const { config } = loadIsolated();
-  const withPagination = {
+  const broken = {
     ...config,
-    source: {
-      ...config.source,
-      pagination: { ...config.source.pagination, enabled: false },
-      allowedUrls: [{ ...config.source.allowedUrls[0], pages: 3, pagination: true }]
-    }
+    source: { ...config.source, pagination: { enabled: true, maxPagesPerUrl: 0 } }
   };
-  const result = validateConfig(withPagination, { requireLiveSource: true });
+  const result = validateConfig(broken, { requireLiveSource: true });
   assert.equal(result.ok, false);
-  assert.ok(result.errors.some((error) => /Пейджинация не подтверждена/.test(error)));
+  assert.ok(result.errors.some((error) => /maxPagesPerUrl/.test(error)));
 
-  // При включённой пагинации те же URL допустимы.
-  const enabled = {
-    ...withPagination,
-    source: { ...withPagination.source, pagination: { enabled: true, maxPagesPerUrl: 3 } }
+  // Корректная глубина пагинации проходит проверку.
+  const ok = {
+    ...config,
+    source: { ...config.source, pagination: { enabled: true, maxPagesPerUrl: 6 } }
   };
-  assert.equal(validateConfig(enabled, { requireLiveSource: true }).ok, true);
+  assert.equal(validateConfig(ok, { requireLiveSource: true }).ok, true);
 });
 
 test('validateSourceUrl пропускает только список заданий', () => {
   assert.equal(validateSourceUrl('https://kwork.ru/projects').ok, true);
   for (const url of [
     'https://kwork.ru/projects/12345/some-job',
-    'https://kwork.ru/projects?page=2',
     'http://kwork.ru/projects',
     'https://kwork.ru/api/v1/projects',
     'https://kwork.ru/user/12345',
@@ -241,25 +223,20 @@ test('отсутствие файла конфигурации даёт поня
   assert.throws(() => loadIsolated({ configFile: 'config/does-not-exist.json' }), ConfigError);
 });
 
-test('preflight блокирует живой запуск без подтверждения и пейджинации', () => {
+test('preflight блокирует живой запуск без подтверждения и без baseUrl', () => {
   const { config } = loadIsolated();
   const disabled = { ...config, source: { ...config.source, enabled: false } };
   const blocked = preflight(disabled, { requireLiveSource: true });
   assert.equal(blocked.ok, false);
   assert.ok(blocked.errors.some((error) => /source\.enabled/.test(error)));
 
-  const withPagination = {
+  const noBase = {
     ...config,
-    source: {
-      ...config.source,
-      enabled: true,
-      permission: { ...config.source.permission, status: 'confirmed' },
-      allowedUrls: [{ ...config.source.allowedUrls[0], pages: 2, pagination: true }]
-    }
+    source: { ...config.source, enabled: true, permission: { ...config.source.permission, status: 'confirmed' }, baseUrl: '' }
   };
-  const paginated = preflight(withPagination, { requireLiveSource: true });
-  assert.equal(paginated.ok, false);
-  assert.ok(paginated.errors.some((error) => /Пейджинация/.test(error)));
+  const withoutBase = preflight(noBase, { requireLiveSource: true });
+  assert.equal(withoutBase.ok, false);
+  assert.ok(withoutBase.errors.some((error) => /baseUrl/.test(error)));
 
   const ready = preflight(
     {

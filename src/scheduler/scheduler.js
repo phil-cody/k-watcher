@@ -2,8 +2,9 @@
  * Планировщик опроса.
  *
  * Жёсткие требования, зашитые в логику (и покрытые тестами):
- *  - окно 05:00–19:00 Europe/Moscow; новый запрос не начинается, если пауза
- *    выводит его за конец окна; после 19:00 опрос останавливается до следующего дня;
+ *  - окно задаётся расписанием (по умолчанию 05:00–20:00 Europe/Moscow); новый запрос
+ *    не начинается, если пауза выводит его за конец окна; после закрытия окна опрос
+ *    останавливается до следующего дня;
  *  - между любыми двумя запросами выбирается НОВЫЙ случайный интервал
  *    240–600 секунд включительно; постоянный интервал не используется;
  *  - при ошибках интервал не уменьшается и ускоренных повторов нет;
@@ -30,6 +31,10 @@ const HARD_STOP_REASONS = new Set([
   STOP_REASONS.BOT_CHECK,
   STOP_REASONS.ACCESS_DENIED
 ]);
+
+// Пока опрос на паузе по команде пользователя, цикл перепроверяет флаг с этим интервалом,
+// чтобы /resume возобновил его без перезапуска процесса.
+const PAUSE_POLL_MS = 1000;
 
 export class PollingScheduler {
   constructor({
@@ -256,7 +261,10 @@ export class PollingScheduler {
     await this.notifyStateChange();
     await this.sleep(decision.waitMs);
 
-    // Повторная проверка окна после сна: пауза могла пересечь 19:00.
+    // Повторная проверка окна после сна: пауза могла пересечь границу закрытия.
+    // trackWindowBoundary не только проверяет, но и отправляет «окно закрылось»
+    // и обновляет windowOpen, если граница была пересечена во сне.
+    await this.trackWindowBoundary({ stats: this.lastOutcome ?? null });
     if (!isWithinWindow(this.now(), this.schedule)) {
       const next = nextWindowStart(this.now(), this.schedule);
       this.status = SCHEDULER_STATE.PAUSED;
@@ -339,7 +347,13 @@ export class PollingScheduler {
         const result = await this.tick();
         if (result.action === 'stopped') return result;
         if (result.action === 'paused') {
-          if (this.pausedByUser) return result;
+          if (this.pausedByUser) {
+            // Пауза по команде пользователя: цикл НЕ завершается, иначе /resume не сможет
+            // его возобновить без перезапуска. Ждём и перепроверяем флаг.
+            this.status = SCHEDULER_STATE.PAUSED;
+            await this.sleep(PAUSE_POLL_MS);
+            continue;
+          }
           // Ожидание открытия окна: пауза ровно до начала окна, затем продолжаем.
           const waitMs = result.nextWindowStart ? result.nextWindowStart.getTime() - this.now().getTime() : 60000;
           if (waitMs > 0) await this.sleep(waitMs);

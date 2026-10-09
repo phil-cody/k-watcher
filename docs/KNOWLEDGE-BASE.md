@@ -67,57 +67,51 @@ node --test                     # тесты
 
 ```
 src/
-  index.js                         443  точка входа: CLI, композиция зависимостей (bootstrap)
-  config/load-config.js            360  чтение/валидация конфига и профиля, границы разрешённых URL
-  util/html.js                     277  свой токенизатор HTML и дерево узлов
-  util/time.js                     265  часовые пояса, окно опроса, случайный интервал
-  util/logger.js                    74  логирование с редактированием секретов
-  source/kwork-html-source.js      199  HTTP-источник: один GET, таймауты, стоп при защите
-  parser/embedded-json-parser.js   329  ГЛАВНЫЙ парсер: JSON внутри HTML (массив wants)
-  parser/job-parser.js             442  оркестрация стратегий парсинга, форма задания
-  parser/anomaly-detector.js       193  детектор реальной проверки/блокировки
-  parser/structure-detector.js     218  DOM-стратегии (запасной путь) + JSON-LD
-  parser/normalize.js              254  нормализация полей: бюджет, даты, id, категории
-  storage/job-store.js             359  индекс дедупликации, журнал, очистка, состояние
-  analysis/analyzer.js             442  эвристика: соответствие профилю, риски, вердикт
-  analysis/rate-estimator.js       ~   оценка цены и срока от ставки профиля
-  analysis/model-usage.js          ~   учёт расхода квоты модели (сутки/час)
-  storage/profile-store.js         ~   профили на пользователя: загрузка, проверка, напоминания
-  storage/profile-guard.js         ~   защита загружаемого профиля: схема, лимиты, прототипы
-  storage/category-store.js        ~   персональные категории заданий и каталог
-  storage/category-catalog.js      ~   каталог сайта: разбор страницы, поиск по названию
-  source/poll-plan.js              ~   план опроса: URL по выбранным категориям
-  analysis/job-signals.js          ~   что реально есть в тексте задания (ссылки, вложения, элементы)
-  analysis/proposal-draft.js       ~   черновик отклика в стиле пользователя
-  analysis/compose-analysis.js      51  склейка: анализ + модель + черновик
-  analysis/model-adapter.js        158  адаптер LLM (по умолчанию выключен)
-  telegram/format.js               226  HTML-сообщение из блоков
-  telegram/client.js               130  тонкий клиент Bot API
-  telegram/state.js                 51  chat id и offset в файле
-  scheduler/scheduler.js           321  окно, пауза, политика остановки
-  scheduler/cycle.js               374  один цикл: запросы → разбор → отправка → очистка
-  bot/kwork-watcher-bot.js         323  команды /status /pause /resume, оркестрация процесса
-  dashboard/server.js              100  локальная страница состояния
-  texts/texts.js                     ~  единая точка доступа к текстам (загрузка, override, подстановка)
-  texts/contract.js                  ~  контракт текстов: какие ключи и плейсхолдеры использует код
+  index.js                         точка входа: CLI, композиция зависимостей (bootstrap)
+  config/load-config.js            чтение/валидация конфига и профиля, границы допустимых URL
+  util/html.js                     свой токенизатор HTML и дерево узлов
+  util/time.js                     часовые пояса, окно опроса, случайный интервал
+  util/logger.js                   логирование с рекурсивным редактированием секретов
+  source/kwork-html-source.js      HTTP-источник: один GET, таймауты, стоп при защите
+  source/poll-plan.js              план опроса: URL по выбранным категориям
+  parser/embedded-json-parser.js   ГЛАВНЫЙ парсер: JSON внутри HTML (массив wants)
+  parser/job-parser.js             оркестрация стратегий парсинга, форма задания
+  parser/anomaly-detector.js       детектор реальной проверки/блокировки
+  parser/structure-detector.js     DOM-стратегии (запасной путь) + JSON-LD
+  parser/normalize.js              нормализация полей: бюджет, даты, id, категории
+  storage/job-store.js             индекс дедупликации (один ключ на задание), журнал, очистка, состояние
+  storage/profile-store.js         личные профили: загрузка, проверка, напоминания
+  storage/profile-guard.js         защита загружаемого профиля: схема, лимиты, прототипы
+  storage/category-store.js        персональные категории заданий и каталог
+  storage/category-catalog.js      каталог сайта: разбор страницы, поиск по названию
+  analysis/analyzer.js             эвристика: соответствие профилю, риски, вердикт
+  analysis/rate-estimator.js       оценка цены и срока от ставки профиля
+  analysis/model-usage.js          учёт расхода квоты модели (сутки/час)
+  analysis/job-signals.js          что реально есть в тексте задания (ссылки, вложения, элементы)
+  analysis/proposal-draft.js       черновик отклика в стиле пользователя
+  analysis/compose-analysis.js     склейка: анализ + модель + черновик
+  analysis/model-adapter.js        адаптер LLM (по умолчанию выключен)
+  telegram/format.js               HTML-сообщение из блоков
+  telegram/client.js               тонкий клиент Bot API (long polling, сетевые сбои)
+  telegram/state.js                реестр пользователей, chat id и offset
+  scheduler/scheduler.js           окно, пауза, политика остановки, основной цикл
+  scheduler/cycle.js               один цикл: запросы → разбор → отправка → очистка
+  bot/kwork-watcher-bot.js         команды и оркестрация процесса
+  dashboard/server.js              локальная страница состояния (только чтение)
+  texts/texts.js                   единая точка доступа к текстам (загрузка, override, подстановка)
+  texts/contract.js                контракт текстов: какие ключи и плейсхолдеры использует код
 test/
-  parser.test.js                   331  парсинг DOM-стратегий и нормализация
-  embedded-json.test.js            320  парсинг реальной структуры, бюджеты, даты, категории
-  store.test.js                    198  дедупликация, индекс, prune
-  analyzer.test.js                 260  вердикты, черновик, HTML-сообщение
-  scheduler.test.js                488  окно, интервал, стопы, источник
-  cycle.test.js                    636  цикл целиком: идемпотентность, очередь, пагинация, очистка
-  config.test.js                   366  конфиг, границы URL, секреты, команды
-  boot.test.js                     123  сборка рантайма, восстановление состояния, уведомление о стопе
-  fixtures/*.html                       7 сохранённых страниц
+  fixtures/                        сохранённые HTML-страницы (8 шт.)
+  *.test.js                        модульные и интеграционные тесты (см. таблицу в разделе 10)
 config/
-  default.json                          все настройки
-  performer-profile.json                профиль исполнителя (редактируемая копия)
-  texts.json                            ВСЕ тексты интерфейса: Telegram, логи, CLI, анализ, черновик
+  default.json                     все настройки
+  categories.json                  полный каталог категорий сайта (7 разделов / 54 категории / 219 подразделов)
+  performer-profile.json           шаблон профиля (для /profile template и dry-run)
+  texts.json                       ВСЕ тексты интерфейса: Telegram, логи, CLI, анализ, черновик
 docs/
-  DEPLOY-VPS.md                         перенос на VPS: systemd, логи, бэкапы, безопасность
-```
-
+  DEPLOY-VPS.md                    перенос на VPS: systemd, логи, бэкапы, безопасность
+  KNOWLEDGE-BASE.md                этот документ: внутреннее устройство и рецепты изменений
+  MODEL-SETUP.md                   подключение внешней модели (openai-compatible / anthropic)
 **Правило зависимостей (важно для навигации):**
 
 ```
@@ -283,8 +277,7 @@ const { config, profile, validation } = loadConfig({
 
 | Функция | Что запрещает |
 |---|---|
-| `validateSourceUrl(url, {allowedUrls})` | не https, чужой хост, путь ≠ `/projects`, страницы заданий, незаявленные query-параметры |
-| `isDeclaredPageVariant(url, allowedUrls)` | пускает ровно `объявленный URL + page=N` (порядок параметров не важен) |
+| `validateSourceUrl(url)` | не https, чужой хост, путь ≠ `/projects`, страницы заданий, запрещённые query-параметры (только `c`/`attr`/`page`) |
 | `validateConfig(config, {requireLiveSource})` | интервал вне 240–600, битый timezone, пейджинация без `pagination.enabled`, `source.enabled=false` при живом запуске |
 | `validateTelegramSecrets` / `validateModelSecrets` | отсутствие токена/ключа там, где он нужен |
 
@@ -309,8 +302,9 @@ classesOf(node)          → массив классов
 **`util/time.js`** — работа со временем без библиотек. Всё через `Intl` с явной зоной:
 
 ```js
-isWithinWindow(date, schedule)          // 05:00–19:00 Europe/Moscow
+isWithinWindow(date, schedule)          // 05:00–20:00 Europe/Moscow
 nextWindowStart(after, schedule)        // ближайшее открытие окна
+nextWindowEnd(after, schedule)          // ближайшее закрытие окна
 chooseIntervalMs(240, 600, random)      // 240000..600000 мс включительно
 planNextRequestWithHistory({...})       // решение: immediate | wait | nextWindow | paused
 ```
@@ -321,8 +315,8 @@ planNextRequestWithHistory({...})       // решение: immediate | wait | ne
 |---|---|---|
 | `immediate` | запросов ещё не было, `firstRequestNoDelay: true` | делает запрос сразу |
 | `wait` | обычный случай | спит `waitMs`, затем запрос |
-| `nextWindow` | пауза вывела бы за 19:00, или сейчас до 05:00 | спит до открытия окна |
-| `paused` | после 19:00 | останавливается до утра |
+| `nextWindow` | пауза вывела бы за 20:00, либо сейчас до 05:00 | спит до ближайшей границы окна (закрытие или открытие) |
+| `paused` | после 20:00 | останавливается до утра |
 
 **`util/logger.js`** — `createLogger({level})` + `redact()`. Редактируются: токен Telegram
 (`123456789:AA…`), `sk-…`, `sk-ant-…`, `Bearer …`, `api_key=…`. Длинные строки обрезаются
@@ -331,7 +325,7 @@ planNextRequestWithHistory({...})       // решение: immediate | wait | ne
 ### 3.3 Источник — `src/source/kwork-html-source.js`
 
 ```js
-const source = new KworkHtmlSource({ allowedUrls, userAgent, timeoutMs, fetchImpl, logger });
+const source = new KworkHtmlSource({ userAgent, timeoutMs, fetchImpl, logger });
 await source.fetchPage('https://kwork.ru/projects?c=38');
 // → { html, status, url, fetchedAt, bytes, softAnomalies, structureSignals }
 ```
@@ -340,7 +334,7 @@ await source.fetchPage('https://kwork.ru/projects?c=38');
 
 1. **Только GET.** Никаких POST/PUT — по grep в проекте есть ровно три POST: Telegram
    `sendMessage`, `getUpdates` и (выключенный) LLM-адаптер.
-2. **Только объявленные URL** (+ их страницы `page=N`).
+2. **Только страницы `/projects` и параметры `c`/`attr`/`page`** (проверка структуры URL).
 3. **Один запрос за раз:** если `inFlight === true`, второй вызов получает
    `SourceError` со `stopReason: 'config-error'`, а не второй запрос.
 4. **Таймаут** через `AbortController` (по умолчанию 20000 мс).
@@ -584,7 +578,7 @@ async tick() {
   switch (decision.action) {
     case 'immediate':  → runRequest()            // первый запрос без паузы
     case 'wait':       → sleep(waitMs) → runRequest()
-    case 'nextWindow': → ждать до 05:00
+    case 'nextWindow': → ждать до ближайшей границы окна (закрытия или открытия)
     case 'paused':     → остановиться до утра
   }
 }
@@ -636,10 +630,10 @@ const result = dispatchCommand('/status', { config, profile, store, schedulerSta
 
 | № | Инвариант | Где живёт | Чем проверяется |
 |---|---|---|---|
-| 1 | **Только объявленные URL, только GET, без авторизации** | `validateSourceUrl`, `isDeclaredPageVariant`, `fetchSinglePage` | `config.test.js` (границы URL), `scheduler.test.js` (нет cookies/authorization) |
+| 1 | **Только `/projects` и параметры `c`/`attr`/`page`, только GET, без авторизации** | `validateSourceUrl`, `fetchSinglePage` | `config.test.js` (структура URL), `scheduler.test.js` (нет cookies/authorization) |
 | 2 | **Один запрос одновременно** | `KworkHtmlSource.inFlight` | `scheduler.test.js` «запрещает параллельные запросы» |
 | 3 | **Случайная пауза 240–600 с перед каждым следующим запросом; первый — без паузы** | `chooseIntervalMs`, `planNextRequestWithHistory` | `scheduler.test.js` (4 теста) |
-| 4 | **Окно 05:00–19:00 Europe/Moscow; запрос не начинается, если пауза выводит за 19:00** | `isWithinWindow`, `planNextRequest` | `scheduler.test.js`, `config.test.js` |
+| 4 | **Окно 05:00–20:00 Europe/Moscow; запрос не начинается, если пауза выводит за 20:00** | `isWithinWindow`, `planNextRequest` | `scheduler.test.js`, `config.test.js` |
 | 5 | **429/CAPTCHA/блокировка → немедленный стоп, без ускоренных повторов** | `HARD_STOP_REASONS`, `stop()` | `scheduler.test.js` |
 | 6 | **Реальная проверка ≠ упоминание в скрипте** | `anomaly-detector.js` | `parser.test.js` (2 фикстуры) |
 | 7 | **Отсутствующее поле → `null` + `missingFields`, никогда не выдумывается** | `normalize.js`, `embedded-json-parser.js` | `embedded-json.test.js`, `parser.test.js` |
@@ -681,7 +675,7 @@ const result = dispatchCommand('/status', { config, profile, store, schedulerSta
 | `structure-changed` | 3 раза не разобралась выдача | да (пауза) |
 | `config-error` | URL/настройки не прошли проверку | да |
 | `paused-by-user` | `/pause` | нет (ждёт `/resume`) |
-| `window-closed` | после 19:00 | нет (ждёт утра) |
+| `window-closed` | после 20:00 | нет (ждёт утра) |
 
 ### `RISK` коды (`analysis/analyzer.js`)
 
@@ -736,7 +730,7 @@ const result = dispatchCommand('/status', { config, profile, store, schedulerSta
 
 ```
 data/
-  seen-index.json         текущие задания (ключи дедупликации + sourceUrl + категория)
+  seen-index.json         текущие задания (ключ дедупликации, url задания + url списка + категория)
   processed-jobs.jsonl    журнал: что и когда добавлено (append-only)
   messages-log.jsonl      журнал отправок: parts, длина, notified
   state.json              планировщик + очередь отправки + причина стопа
@@ -841,7 +835,7 @@ LLM_MODEL=deepseek-chat
 ### 8.5 Настроить расписание и глубину
 
 ```json
-"schedule": { "windowStart": "09:00", "windowEnd": "19:00",
+"schedule": { "windowStart": "05:00", "windowEnd": "20:00",
               "minIntervalSeconds": 300, "maxIntervalSeconds": 600,
               "firstRequestNoDelay": false },
 "source":   { "pagination": { "enabled": true, "maxPagesPerUrl": 5 } }
@@ -888,7 +882,7 @@ LLM_MODEL=deepseek-chat
 
 ### «Ожидание открытия окна опроса»
 
-Это не ошибка: либо сейчас до 05:00 МСК, либо пауза вывела бы запрос за 19:00. Бот ждёт
+Это не ошибка: либо сейчас до 05:00 МСК, либо пауза вывела бы запрос за 20:00. Бот ждёт
 открытия окна и не тратит запросы. Проверить время:
 
 ```bash
@@ -945,7 +939,7 @@ node src/index.js dashboard --port=8787    # http://127.0.0.1:8787
 ## 10. Тесты
 
 ```bash
-node --test                                  # всё (325 тестов)
+node --test                                  # всё (321 тест)
 node --test test/cycle.test.js               # один файл
 node --test test/texts.test.js test/security.test.js   # тексты и безопасность
 node --test --test-name-pattern="пагинац"    # тесты по подстроке имени
@@ -964,14 +958,14 @@ node --test --test-name-pattern="пагинац"    # тесты по подст
 | `texts.test.js` | контракт текстов, плейсхолдеры, локальный override, отсутствие незаполненных `{}` |
 | `security.test.js` | секреты в логах, белый список хостов, отсутствие POST на Kwork, HTML в файлах, подписи метрик и заказчика |
 | `model.test.js` | бюджет запросов, сброс по суткам и часам, классификация ошибок, выборочный вызов, расход в `/status` |
-| `telegram-users.test.js` | реестр пользователей, `/start`, `/approve`, `/deny`, `/users`, публикация меню команд |
+| `telegram-users.test.js` | реестр пользователей, открытый доступ по `/start`, `/users`, публикация меню команд |
 | `telegram-commands.test.js` | разметка ответов на все команды, права владельца, два набора меню, область публикации, идемпотентность публикации |
-| `profiles.test.js` | приоритет личного профиля, битый файл, пригодность, напоминания, анализ на каждого пользователя |
+| `profiles.test.js` | личный профиль, битый файл, пригодность, напоминания, анализ на каждого пользователя |
 | `profile-upload.test.js` | `/profile upload`, приём файла, отклонение битого, `/profile template`, сброс |
 | `profile-guard.test.js` | защита загрузки: тип, размер, глубина до парсинга, прототипы, лимиты, разметка, частота |
-| `categories.test.js` | каталог, персональный выбор, приоритет над общими, фильтр, команда `/categories` |
+| `categories.test.js` | каталог, персональный выбор, фильтр, команда `/categories` |
 | `category-catalog.test.js` | разбор страницы, 54 категории и 219 подразделов, URL-связь, поиск с ё/е и й/и, имена в задании |
-| `poll-plan.test.js` | режимы плана, ограничение объявленными URL, сохранение пагинации, `/plan` |
+| `poll-plan.test.js` | режимы плана по категориям, пагинация, `/plan` |
 | `rates.test.js` | оценка от ставки, срочность, минимальный режим, черновик без внутренних ключей, «макет посмотрел» только по ссылке |
 
 **Как писать новый тест:**
@@ -995,7 +989,6 @@ import { fetchSinglePage } from '/путь/src/source/kwork-html-source.js';
 import { extractEmbeddedPagination, extractEmbeddedWantsPayload } from '/путь/src/parser/embedded-json-parser.js';
 
 const res = await fetchSinglePage('https://kwork.ru/projects?c=38', {
-  allowedUrls: [{ url: 'https://kwork.ru/projects?c=38' }],
   userAgent: 'kwork-watcher-bot/0.1'
 });
 console.log(extractEmbeddedPagination(res.html));            // { currentPage, lastPage, total }
@@ -1024,8 +1017,9 @@ import { planNextRequestWithHistory } from './src/util/time.js';
 planNextRequestWithHistory({ now: new Date('2026-10-07T07:00:00Z'), schedule, hasPriorRequest: false });
 ```
 
-**Правило живых проверок.** Один запрос за раз, пауза 240–600 с, только в окне 05:00–19:00
-МСК, только объявленные URL. Диагностические скрипты не должны сохранять HTML и не должны
+**Правило живых проверок.** Один запрос за раз, пауза 240–600 с, только в окне 05:00–20:00
+МСК, только страницы `/projects` и параметры `c`/`attr`/`page`. Диагностические скрипты не
+должны сохранять HTML и не должны
 запускаться «в фоне» — после проверки убедитесь, что процесса не осталось:
 
 ```bash
@@ -1058,8 +1052,6 @@ API объекта текстов:
 | `t(path, params)` | строка с подстановкой `{name}` | `texts.t('logs.indexPruned', { removed: 3, active: 32 })` |
 | `lines(path, params)` | массив строк-шаблонов | `texts.lines('cli.help')` |
 | `raw(path)` | значение как есть (без подстановки) | `texts.raw('telegram.sections.facts')` |
-| `choose(path, {params, context})` | выбор варианта (строка / массив / массив с `when`) | `texts.choose('proposal.scopeItems.markup')` |
-| `parametrized(path, params)` | объект, где листья — отформатированные строки | `texts.parametrized('commands.plan')` |
 
 Правила:
 
@@ -1138,6 +1130,10 @@ node --test test/texts.test.js
 | `buildWindowNotifier()` | `index.js` | собирает текст и отправляет его через Telegram-клиент |
 | `dailyCounters` в `state.json` | `index.js` | запросы и новые задания за текущий цикл — для статистики в сообщениях |
 
+Планировщик, когда пауза вывела бы запрос за конец окна, спит **до ближайшей границы**
+(закрытия `nextWindowEnd`, открытия `nextWindowStart`), а не перепрыгивает её до утра — иначе
+переход «открыто → закрыто» остался бы незамеченным и «окно закрылось» не пришло бы.
+
 Содержимое сообщений:
 
 - **открытие**: расписание (окно, пауза, часовой пояс), сколько заданий обработано за прошлый
@@ -1150,7 +1146,8 @@ node --test test/texts.test.js
 
 Тесты: `test/scheduler.test.js` — «уведомление об открытии окна отправляется один раз на
 переход», «уведомление о закрытии окна содержит время следующего открытия и статистику»,
-«state содержит windowOpen».
+«state содержит windowOpen», «пересечение границы во время ожидания шлёт „закрылось",
+затем „открылось"».
 
 ## 12b. Оценка цены и срока
 
@@ -1283,7 +1280,7 @@ node --test test/texts.test.js
 - POST вне Telegram и модели невозможен (тест «на Kwork нет ни одного POST»);
 - запрос к Kwork не содержит `cookie`, `authorization`, `referer`, `origin`
   (тест «запросы к Kwork не содержат cookies, referer и авторизации»);
-- источник отклоняет URL вне `allowedUrls` и их страниц `?page=N` **до** выхода в сеть.
+- источник отклоняет URL вне `/projects` и параметров `c`/`attr`/`page` **до** выхода в сеть (проверка структуры).
 
 ### 13.2 Секреты
 
@@ -1485,12 +1482,12 @@ LLM_MODEL=deepseek-chat
 ### 15.7a Подключить нового пользователя
 
 1. Пользователь пишет боту `/start`.
-2. Владельцу приходит уведомление с его id; посмотреть список: `/users`.
-3. Подтвердить: `/approve <id>`; отклонить: `/deny <id>`.
-4. Ничего перезапускать не нужно — доступ сохраняется в `data/telegram-state.json` сразу.
+2. Доступ открывается сразу: в лог пишется «Новый пользователь подключился к боту».
+   Список подключённых — `/users` (только владелец).
+3. Ничего перезапускать не нужно — доступ сохраняется в `data/telegram-state.json` сразу.
 
-Если нужно, чтобы доступ выдавался автоматически: `config/default.json` →
-`"telegram": { "autoApprove": true }` и перезапуск `bot`.
+Доступ открыт по умолчанию. Чтобы закрыть (публичное окружение): `config/default.json` →
+`"telegram": { "autoApprove": false }` и перезапуск `bot`.
 
 ### 15.7b Изменить меню команд Telegram
 
@@ -1539,8 +1536,9 @@ LLM_MODEL=deepseek-chat
 ## 16. Границы проекта
 
 **Разрешено (подтверждено пользователем):** одиночные GET страниц списка заданий
-`https://kwork.ru/projects` и его категорий `?c=79`, `?c=38`, `?c=37`, включая их страницы
-`?page=N`, со случайной паузой 4–10 минут в окне 05:00–19:00 МСК.
+`https://kwork.ru/projects` и её вариантов по категории/подразделу/странице — `?c=<id>`,
+`?attr=<id>`, `?page=<n>`, со случайной паузой 4–10 минут в окне 05:00–20:00 МСК.
+Категории берутся из каталога `config/categories.json` (жёсткого списка URL нет).
 
 **Запрещено и не реализовано намеренно:**
 
@@ -1605,7 +1603,7 @@ LLM_MODEL=deepseek-chat
 ```
 
 `knownUsers` хранит только публичные данные Telegram (id, username, имя) — это нужно, чтобы
-после `/approve` бот знал, куда отправить уведомление. Токенов в файле нет.
+бот знал чат каждого подключённого. Токенов в файле нет.
 
 Совместимость: старый файл с одним `chatId` читается как один подтверждённый пользователь.
 
@@ -1630,7 +1628,7 @@ LLM_MODEL=deepseek-chat
 
 **Важно про разметку ответов.** Ответы команд уходят с `parse_mode=HTML`, поэтому символы
 `<` и `>` в текстах недопустимы, кроме известных тегов Telegram. Именно на этом падала
-команда `/users`: в подсказке было `/approve <id>`, и Telegram отвечал
+команда `/users`: в подсказке был текст `<id>`, и Telegram отвечал
 `can't parse entities: Unsupported start tag "id"`. Теперь подсказка содержит числовой
 пример, а тест `test/telegram-commands.test.js` проверяет каждый ответ на команду
 валидатором `validateTelegramHtml` (пары тегов, только разрешённые теги, нет `<` вне тегов).
@@ -1664,24 +1662,26 @@ LLM_MODEL=deepseek-chat
 Профиль определяет вердикт, риски, цену, срок и черновик отклика. Поэтому он **личный**:
 один общий профиль на всех не имеет смысла, если ботом пользуются разные люди.
 
-### 18a.1 Приоритет профилей
+### 18a.1 Профиль
 
 ```
 1. data/profiles/<userId>.json     личный профиль (загружен через /profile upload)
-2. config/performer-profile.json   общий профиль из PROFILE_FILE (запасной)
-3. нет профиля                      задания не отправляются, раз в сутки напоминание
+2. нет профиля                      задания не отправляются, раз в сутки напоминание
 ```
+
+Общего/запасного профиля нет: `config/performer-profile.json` — только шаблон
+для `/profile template` и локального `dry-run`.
 
 Реализация — `src/storage/profile-store.js` (`ProfileStore`):
 
 | Метод | Назначение |
 |---|---|
-| `get(userId)` | `{ profile, source: 'personal'|'fallback'|null, path }` |
+| `get(userId)` | `{ profile, source: 'personal'|null, path }` |
 | `parse(text)` | проверка загруженного текста: JSON, размер, содержательность |
 | `import(userId, text)` | проверка + атомарное сохранение |
 | `save` / `remove` / `has` | работа с личным файлом |
 | `noteReminder(userId)` | напоминание не чаще раза в сутки |
-| `summarize(userIds)` / `listPersonal()` | кто с профилем и кто без |
+| `summarize(userIds)` | кто с профилем и кто без |
 
 Профиль считается пригодным (`isUsable`), если есть хотя бы одно из: `skills`, `portfolio`,
 `services`, `pricing.minimum_project_price`/`hourly_rate`, `matching_preferences.positive_keywords`.
@@ -1693,7 +1693,7 @@ LLM_MODEL=deepseek-chat
 /profile            показать профиль и источник
 /profile upload     включить ожидание файла (5 минут) и попросить прислать JSON
 /profile template   получить шаблон профиля документом
-/profile reset      удалить личный профиль, вернуться на общий
+/profile reset      удалить личный профиль (общего нет)
 ```
 
 Порядок обработки файла (`KworkWatcherBot.handleProfileDocument`):
@@ -1743,7 +1743,7 @@ LLM_MODEL=deepseek-chat
 
 Задания различаются полем `category_id` из выдачи — это целое число, совпадающее с
 параметром `?c=` в адресе категории на Kwork. Один `category_id` покрывает подраздел целиком
-(например, 37 — и «Верстка по макету», и «Доработка и адаптация верстки»), разделить их
+(например, 79 — и «Верстка по макету», и «Доработка и адаптация верстки»), разделить их
 по числовому id нельзя.
 
 **Приоритет выбора:**
@@ -1807,7 +1807,7 @@ LLM_MODEL=deepseek-chat
 **Обновление каталога:**
 
 ```bash
-node src/index.js categories-refresh                 # один GET на разрешённый URL списка
+node src/index.js categories-refresh                 # один GET на страницу списка заданий
 node src/index.js categories-refresh --file=page.html # из сохранённой страницы (без сети)
 ```
 
@@ -1849,7 +1849,7 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 | 38 | Доработка и настройка сайта | Доработка сайта (`attr=1271`) и ещё 5 |
 
 Раньше в `targetCategories` названия были перепутаны (37 значилось как «Вёрстка»). Исправлено;
-ссылки в `allowedUrls` не менялись — `?c=37/38/79` работают как прежде.
+категории берутся из каталога `config/categories.json`, жёсткого списка URL больше нет.
 
 **Важно:** один числовой id покрывает несколько подразделов, поэтому по `category_id`
 нельзя различить «Верстка по макету» и «Доработка и адаптация верстки». Различить их можно
@@ -1902,7 +1902,7 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 
 | Блок | Источник |
 |---|---|
-| Пользователи | `telegram-state.json`: `approvedUsers`, `pendingUsers`, `ownerId` |
+| Пользователи | `telegram-state.json`: `approvedUsers`, `seenUsers`, `ownerId` |
 | Профили и категории | `ProfileStore.summarize`, наличие файла в `data/categories/` |
 | Задания | `store.stats.total` |
 | Циклы и запросы | `state.json` → `metrics` |
@@ -1933,27 +1933,26 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 | **не выбрано (по умолчанию)** | `all` | один на `/projects` — все задания |
 | `/categories all` | `all` | то же |
 | выбраны категории | `categories` | по одному на каждую: `/projects?c=<id>` |
-| выбранное не объявлено в доступе | `declared` | объявленные URL, чтобы не остаться без заданий |
 
-**Правило безопасности:** в план попадают только URL из `source.allowedUrls`. Всё остальное
-отбрасывается и показывается в `/plan` как `не объявлен в source.allowedUrls`. Так выбранные
-категории не могут расширить согласованный объём доступа.
+**Правило безопасности:** жёсткого белого списка URL больше нет. Категории приходят из
+полного каталога `config/categories.json`, а `validateSourceUrl` проверяет **структуру**
+адреса: только `https://kwork.ru/projects` и параметры `c` (категория), `attr` (подраздел),
+`page` (страница, `>= 2`). Всё остальное — страницы заданий, API, поиск, профили — отклоняется
+до выхода в сеть.
 
 Реализация:
 
 | Функция | Назначение |
 |---|---|
-| `buildPollPlan({base, allowedUrls, selection})` | строит список URL и режим |
+| `buildPollPlan({base, selection})` | строит список URL и режим |
 | `effectiveCategorySelection(selections)` | объединяет выбор нескольких получателей |
 | `categoryIdOfUrl(url)` | категория из `?c=` (учитывает, что `Number(null) === 0`) |
-| `baseFromAllowedUrls(allowedUrls)` | origin для построения URL |
+| `baseProjectsUrl(config)` | URL общего списка из `source.baseUrl` |
 
 Цикл получает план через `planUrlsForPass()`: читает выбор каждого получателя, объединяет,
 строит план и ходит **только по нему**. В `summary.pollPlan` попадает режим и список URL.
-
-**Важно:** план переносит в записи поля `pages` и `pagination` из объявленного URL. Без этого
-глубина пагинации схлопывалась до одной страницы — регрессия, которую поймал тест
-«план сохраняет глубину пагинации».
+Глубина пагинации — глобальная настройка `source.pagination.maxPagesPerUrl`, а не поле
+каждого URL.
 
 `/plan` и `node src/index.js plan` показывают актуальный план: для `/plan` берётся выбор
 категорий того, кто спросил.
@@ -2082,7 +2081,7 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 | **soft anomaly** | упоминание защиты в скрипте → игнорируется |
 | **hard stop reason** | причина, при которой опрос останавливается без повторов |
 | **pendingNotifications** | очередь недоставленных сообщений |
-| **окно опроса** | 05:00–19:00 Europe/Moscow |
+| **окно опроса** | 05:00–20:00 Europe/Moscow |
 | **immediate / wait / nextWindow / paused** | решения планировщика по шагу |
 | **firstRequestNoDelay** | первый запрос после старта — без паузы |
 | **last_page / total** | метаданные выдачи: сколько страниц и заданий всего |
@@ -2099,12 +2098,12 @@ node src/index.js categories-refresh --file=page.html # из сохранённ�
 | **pendingNotifications** | очередь недоставленных сообщений (не более 50) |
 | **systemd-юнит** | способ автозапуска бота на сервере (`docs/DEPLOY-VPS.md`) |
 | **владелец** | пользователь из `TELEGRAM_ALLOWED_USER_ID`; подтверждает доступ остальным |
-| **approvedUsers / pendingUsers** | списки доступа и ожидающих решения в `data/telegram-state.json` |
+| **approvedUsers / seenUsers** | подключённые пользователи и те, кто уже писал боту (для лога «новый») |
 | **autoApprove** | режим, при котором доступ выдаётся сразу при `/start` |
 | **setMyCommands** | вызов Telegram, публикующий команды в меню бота |
 | **scope (Telegram)** | область видимости меню: без неё — всем, `chat` — конкретному чату |
-| **ownerOnly** | команды `/users`, `/approve`, `/deny`, доступные только владельцу |
-| **ProfileStore** | хранилище профилей на пользователя с приоритетом «личный → общий» |
+| **ownerOnly** | команды `/users`, `/usage`, доступные только владельцу |
+| **ProfileStore** | хранилище личных профилей пользователей (общего профиля нет) |
 | **отпечаток меню** | хеш набора команд: по нему решается, нужна ли повторная публикация |
 | **recipients** | список «userId + chatId», которым уходят уведомления |
 | **categoryCatalog** | справочник id → название категории Kwork (полный — в `config/categories.json`) |

@@ -19,7 +19,7 @@ import { renderJobMessages } from '../telegram/format.js';
 import { analyzeAndDraft } from '../analysis/compose-analysis.js';
 import { keyIdsForJob } from '../storage/job-store.js';
 import { applyCategoryName } from '../storage/category-store.js';
-import { buildPollPlan, baseFromAllowedUrls } from '../source/poll-plan.js';
+import { buildPollPlan, effectiveCategorySelection } from '../source/poll-plan.js';
 import { createTexts } from '../texts/texts.js';
 
 const PENDING_LIMIT = 50;
@@ -165,29 +165,27 @@ export function createCycleRunner({
 
   /**
    * Сколько страниц запрашивать для этого URL.
-   * Ориентируемся на last_page из выдачи: если Kwork говорит, что страниц больше,
-   * добираем их (в пределах maxPagesPerUrl и жёсткого предела).
+   *
+   * Без сигнала из выдачи (last_page) — одна страница. Если Kwork сообщает, что
+   * страниц больше, добираем их, но не глубже глобального maxPagesPerUrl и
+   * жёсткого предела.
    */
-  function maxPagesFor(entry, pageInfo) {
-    const declared = Math.max(
-      1,
-      Math.min(Number(entry.pages ?? 1) || 1, maxPagesPerUrl)
-    );
+  function maxPagesFor(pageInfo) {
     const hint = Number(pageInfo?.lastPage ?? 0);
-    if (!Number.isFinite(hint) || hint <= 1) return declared;
-    return Math.max(declared, Math.min(hint, maxPagesPerUrl, HARD_PAGE_LIMIT));
+    if (!Number.isFinite(hint) || hint <= 1) return 1;
+    return Math.min(hint, maxPagesPerUrl, HARD_PAGE_LIMIT);
   }
 
   /**
    * URL текущего прохода.
    *
    * Если получатели выбрали категории, опрашиваются именно они; иначе — общий список.
-   * План всегда ограничен объявленными URL: выйти за согласованный объём нельзя.
+   * Категории приходят из полного каталога, поэтому жёсткого белого списка нет:
+   * допустим любой положительный id по пути /projects (проверяется в источнике).
    */
   async function planUrlsForPass() {
     const audience = await resolveRecipients();
-    const allowed = (sourceConfig.allowedUrls ?? []).filter((entry) => entry.enabled !== false);
-    const base = baseFromAllowedUrls(allowed);
+    const base = String(sourceConfig.baseUrl ?? 'https://kwork.ru').replace(/\/+$/, '');
 
     // У каждого получателя свой выбор; объединяем. Нет профиля — всё равно учитываем выбор.
     const selections = [];
@@ -197,19 +195,15 @@ export function createCycleRunner({
       selections.push(effective.selection);
     }
 
-    const plan = buildPollPlan({ base, allowedUrls: allowed, selection: unionSelection(selections) });
-    return { allowed, plan };
+    const plan = buildPollPlan({ base, selection: effectiveCategorySelection(selections).selection });
+    return { plan };
   }
 
   async function runOnce() {
     const startedAt = now();
-    const { allowed: enabledUrls, plan } = await planUrlsForPass();
+    const { plan } = await planUrlsForPass();
     if (plan.urls.length === 0) {
-      throw new Error(
-        enabledUrls.length === 0
-          ? 'Нет ни одного включённого разрешённого URL: опрос невозможен.'
-          : 'Ни один URL из плана не объявлен в source.allowedUrls: опрос невозможен.'
-      );
+      throw new Error('План опроса пуст: опрос невозможен.');
     }
 
     loggedErrors = new Set();
@@ -257,7 +251,7 @@ export function createCycleRunner({
       // Первая страница нужна, чтобы узнать last_page, затем добираем остальные.
       for (let pageNumber = 1; pageNumber <= HARD_PAGE_LIMIT; pageNumber += 1) {
         const url = pageUrlOf(entry, pageNumber);
-        if (pageNumber > 1 && pageNumber > maxPagesFor(entry, currentPageInfo)) break;
+        if (pageNumber > 1 && pageNumber > maxPagesFor(currentPageInfo)) break;
         pagesRequested += 1;
         let page;
         try {
@@ -356,7 +350,7 @@ export function createCycleRunner({
         // Решение о следующей странице принимаем до отправки: иначе пагинация
         // остановилась бы на первой странице без новых заданий (только повторы).
         const nextPage = pageNumber + 1;
-        const canContinue = nextPage <= maxPagesFor(entry, currentPageInfo) && nextPage <= HARD_PAGE_LIMIT;
+        const canContinue = nextPage <= maxPagesFor(currentPageInfo) && nextPage <= HARD_PAGE_LIMIT;
 
         if (fresh.length === 0) {
           if (!canContinue) break;
@@ -582,22 +576,6 @@ export function createCycleRunner({
     }
 
     return summary;
-  }
-
-  /** Объединение выбора категорий у нескольких получателей. */
-  function unionSelection(selections) {
-    const list = (selections ?? []).filter((item) => item !== null && item !== undefined);
-    if (list.length === 0) return null;
-    if (list.some((item) => item === 'all')) return 'all';
-    const ids = new Set();
-    for (const item of list) {
-      if (!Array.isArray(item)) continue;
-      for (const id of item) {
-        const numeric = Number(id);
-        if (Number.isFinite(numeric) && numeric > 0) ids.add(numeric);
-      }
-    }
-    return ids.size === 0 ? null : [...ids].sort((a, b) => a - b);
   }
 
   function shortUrl(url) {

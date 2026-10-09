@@ -250,16 +250,6 @@ export class CategoryPreferences {
     return candidates.some((id) => selection.includes(id));
   }
 
-  /** Кто из пользователей выбрал свои категории. */
-  async listPersonal() {
-    if (!existsSync(this.dir)) return [];
-    const { readdir } = await import('node:fs/promises');
-    const names = await readdir(this.dir);
-    return names
-      .filter((name) => name.endsWith('.json'))
-      .map((name) => Number(name.replace(/\.json$/, '')))
-      .filter((id) => Number.isFinite(id));
-  }
 }
 
 /**

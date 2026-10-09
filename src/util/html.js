@@ -188,15 +188,6 @@ export function walk(node, visit) {
   }
 }
 
-/** Список всех элементов дерева (без корня). */
-export function allElements(root) {
-  const out = [];
-  walk(root, (node) => {
-    if (node.type === 'element' && node !== root) out.push(node);
-  });
-  return out;
-}
-
 /** Текст внутри узла, склеенный с нормализацией пробелов. */
 export function textOf(node, { separator = ' ' } = {}) {
   const parts = [];
@@ -238,31 +229,6 @@ export function findAll(root, predicate) {
     if (node.type === 'element' && predicate(node)) out.push(node);
   });
   return out;
-}
-
-/**
- * Поиск кандидатов карточек по нескольким независимым «следам» разметки.
- * Возвращает первого кандидата из наиболее специфичного набора, либо пустой список.
- */
-export function findCandidates(root, candidateSpecs) {
-  for (const spec of candidateSpecs) {
-    const matches = findAll(root, spec.match);
-    if (matches.length > 0) {
-      // Отбрасываем кандидатов, вложенных в другого кандидата (дубли из-за обёрток).
-      const filtered = matches.filter((node) => !matches.some((other) => other !== node && isDescendant(node, other)));
-      return { matchedBy: spec.id, nodes: filtered };
-    }
-  }
-  return { matchedBy: null, nodes: [] };
-}
-
-export function isDescendant(node, possibleAncestor) {
-  let current = node.parent;
-  while (current) {
-    if (current === possibleAncestor) return true;
-    current = current.parent;
-  }
-  return false;
 }
 
 /** Простой парсер HTML -> дерево. */

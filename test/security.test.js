@@ -275,11 +275,8 @@ test('окно опроса и интервал не выходят за под�
   assert.ok(config.schedule.minIntervalSeconds >= 240, 'минимальный интервал не может быть меньше 240 с');
   assert.ok(config.schedule.maxIntervalSeconds <= 600, 'максимальный интервал не может быть больше 600 с');
   assert.equal(config.source.pruneMissingJobs, true);
-  // Каждый разрешённый URL — страница списка, не страница задания.
-  for (const entry of config.source.allowedUrls) {
-    const path = new URL(entry.url).pathname;
-    assert.equal(path, '/projects', `недопустимый путь в allowedUrls: ${entry.url}`);
-  }
+  // Базовый адрес источника — список заданий, не страница задания.
+  assert.match(config.source.baseUrl, /^https:\/\/kwork\.ru$/);
 });
 
 test('сообщение не содержит ничего, кроме данных задания и анализа', async () => {

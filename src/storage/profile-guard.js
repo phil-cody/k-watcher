@@ -96,10 +96,9 @@ export function preflightJson(text, { maxBytes = LIMITS.maxBytes, maxDepth = LIM
 }
 
 /** Глубина и количество ключей в объекте: защита от «дерева на миллион узлов». */
-function measure(value, depth = 0, counters = { keys: 0, nodes: 0, maxDepth: 0 }) {
+function measure(value, depth = 0, counters = { keys: 0, maxDepth: 0 }) {
   if (depth > LIMITS.maxDepth) return { ...counters, tooDeep: true };
   counters.maxDepth = Math.max(counters.maxDepth, depth);
-  counters.nodes += 1;
   if (Array.isArray(value)) {
     for (const item of value) measure(item, depth + 1, counters);
   } else if (value && typeof value === 'object') {

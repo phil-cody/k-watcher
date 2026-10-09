@@ -2,7 +2,7 @@
  * Хранилище обработанных заданий и дедупликация.
  *
  * Требование: новая карточка обрабатывается один раз, повторная не создаёт дубликат.
- * Индекс дедупликации ведётся по нескольким ключам сразу:
+ * Индекс дедупликации хранит ОДИН ключ на задание (приоритет ниже):
  *  - stable-id  — числовой id задания (самый надёжный);
  *  - url        — нормализованная ссылка без query-параметров;
  *  - composite  — осторожный составной ключ, когда ни id, ни ссылки нет.
@@ -28,7 +28,18 @@ export function normalizeUrlKey(url) {
     const path = parsed.pathname.replace(/\/+$/, '');
     return `${parsed.origin}${path}`;
   } catch {
-    return String(url).split('?')[0].replace(/\/+$/, '');
+    return String(url).split(/[?#]/)[0].replace(/\/+$/, '');
+  }
+}
+
+/** Является ли URL страницей списка заданий (/projects или /projects?c=…), а не самим заданием. */
+function isListingUrl(url) {
+  if (!url) return false;
+  try {
+    const path = new URL(String(url)).pathname.replace(/\/+$/, '') || '/';
+    return path === '/projects';
+  } catch {
+    return false;
   }
 }
 
@@ -77,7 +88,11 @@ function entryOf(job, { recordedAt, sourceRef }) {
     dedupKey: job.dedupKey ?? null,
     title: job.title ?? null,
     recordedAt,
-    sourceUrl: sourceRef?.url ?? null,
+    // url-адрес самого задания (например, https://kwork.ru/projects/3265111).
+    sourceUrl: job.url ?? null,
+    // Список, из которого задание взято (например, https://kwork.ru/projects?c=37).
+    // Нужен для безопасной очистки индекса: удаляем только задания из надёжных источников.
+    listingUrl: sourceRef?.url ?? null,
     kworkCategoryId: sourceRef?.kworkCategoryId ?? null
   };
 }
@@ -85,14 +100,23 @@ function entryOf(job, { recordedAt, sourceRef }) {
 /** Совместимость: старый формат хранил строку вместо объекта. */
 function normalizeIndexEntry(value) {
   if (value === null || value === undefined) return null;
-  if (typeof value === 'string') return { dedupKey: value, title: null, recordedAt: null, sourceUrl: null, kworkCategoryId: null };
-  return {
+  if (typeof value === 'string') {
+    return { dedupKey: value, title: null, recordedAt: null, sourceUrl: null, listingUrl: null, kworkCategoryId: null };
+  }
+  const entry = {
     dedupKey: value.dedupKey ?? null,
     title: value.title ?? null,
     recordedAt: value.recordedAt ?? null,
     sourceUrl: value.sourceUrl ?? null,
+    listingUrl: value.listingUrl ?? null,
     kworkCategoryId: value.kworkCategoryId ?? null
   };
+  // Миграция старого формата: раньше sourceUrl хранил URL списка (категорию), а не задания.
+  if (!entry.listingUrl && isListingUrl(entry.sourceUrl)) {
+    entry.listingUrl = entry.sourceUrl;
+    entry.sourceUrl = null;
+  }
+  return entry;
 }
 
 /**
@@ -141,11 +165,14 @@ export function addToIndex(job, index, { recordedAt = new Date().toISOString(), 
       url: { ...(index?.keys?.url ?? {}) },
       composite: { ...(index?.keys?.composite ?? {}) }
     },
-    total: (index?.total ?? 0) + 1
+    total: index?.total ?? 0
   };
   const entry = entryOf(job, { recordedAt, sourceRef });
   const key = keyForJob(job);
-  if (key) next.keys[indexFieldFor(key.type)][key.value] = entry;
+  if (key) {
+    next.keys[indexFieldFor(key.type)][key.value] = entry;
+    next.total += 1;
+  }
   next.updatedAt = recordedAt;
   return next;
 }
@@ -179,10 +206,12 @@ export function pruneIndex(index, seenKeys, { reliableSourceUrls = new Set() } =
       const keyId = `${type}:${key}`;
       const seen = seenKeys.has(keyId);
       // Записи без источника (старый формат) не удаляем: неизвестно, откуда они.
-      const sourceReliable = entry?.sourceUrl ? reliableSourceUrls.has(entry.sourceUrl) : false;
+      const sourceReliable = entry?.listingUrl ? reliableSourceUrls.has(entry.listingUrl) : false;
       if (seen || !sourceReliable) {
         next.keys[type][key] = rawEntry;
-        if (!seen && sourceReliable) removed.protected += 1;
+        // «Защищены» записи, у которых нет источника (старый формат): их нельзя
+        // безопасно удалить, потому что неизвестно, из какого URL они пришли.
+        if (!seen && !sourceReliable) removed.protected += 1;
         if (entry?.dedupKey) keptDedupKeys.add(entry.dedupKey);
         continue;
       }
@@ -325,6 +354,7 @@ export class JobStore {
         title: entry.title,
         kworkCategoryId: entry.kworkCategoryId,
         sourceUrl: entry.sourceUrl,
+        listingUrl: entry.listingUrl,
         recordedAt: entry.recordedAt
       });
       if (out.length >= limit) break;

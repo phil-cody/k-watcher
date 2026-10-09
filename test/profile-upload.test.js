@@ -28,7 +28,7 @@ async function makeBot({ fileText = null, downloadError = null } = {}) {
   state.rememberUser({ userId: 111, chatId: 111, username: 'owner' });
   state.approveUser(111);
 
-  const profiles = new ProfileStore({ dataDir: dir, fallbackProfile: null });
+  const profiles = new ProfileStore({ dataDir: dir });
   const sent = [];
   const documents = [];
   const client = {

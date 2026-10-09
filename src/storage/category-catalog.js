@@ -13,7 +13,7 @@
  * показать название категории вместо числа.
  *
  * Каталог обновляется командой `node src/index.js categories-refresh`
- * (один GET на разрешённый URL страницы списка заданий).
+ * (один GET на страницу списка заданий).
  */
 
 import { readFile, writeFile } from 'node:fs/promises';

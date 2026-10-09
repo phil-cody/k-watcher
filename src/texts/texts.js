@@ -14,9 +14,6 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
-import { findPlaceholders } from './contract.js';
-
-export { findPlaceholders };
 
 /** Глубокое слияние: значения из override перекрывают base. */
 export function deepMerge(base, override) {
@@ -116,38 +113,5 @@ export function createTexts({ rootDir = process.cwd(), baseFile = 'config/texts.
       return value.map((item) => format(item, params)).filter((item) => item !== '');
     },
 
-    /** Выбор варианта из строки, массива вариантов или массива {text, when}. */
-    choose(path, { params = {}, context = {} } = {}) {
-      const value = pick(merged, path);
-      if (value === undefined || value === null) return undefined;
-      if (typeof value === 'string') return format(value, params);
-      if (Array.isArray(value)) {
-        const candidates = value.filter((item) => {
-          if (typeof item === 'string') return true;
-          if (item && typeof item === 'object') {
-            if (!item.when) return true;
-            return Object.entries(item.when).every(([key, expected]) => context[key] === expected);
-          }
-          return false;
-        });
-        if (candidates.length === 0) return undefined;
-        const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-        return format(typeof chosen === 'string' ? chosen : chosen.text, params);
-      }
-      return undefined;
-    },
-
-    /** Объект подстановок, где каждый лист — отформатированная строка. */
-    parametrized(path, params = {}) {
-      const value = pick(merged, path);
-      if (value === undefined || value === null || typeof value !== 'object' || Array.isArray(value)) {
-        return {};
-      }
-      const out = {};
-      for (const [key, item] of Object.entries(value)) {
-        out[key] = typeof item === 'string' ? format(item, params) : item;
-      }
-      return out;
-    }
   };
 }

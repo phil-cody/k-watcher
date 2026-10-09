@@ -3,12 +3,13 @@
  *
  * Логика:
  *  - категории не выбраны  → один запрос на общий список (`/projects`), приходят все задания;
- *  - выбраны категории     → запрос на каждую категорию (`/projects?c=<id>`);
- *  - «все категории» (all) → один запрос на общий список: он и есть все задания.
+ *  - «все категории» (all) → то же: общий список и есть все задания;
+ *  - выбраны категории     → запрос на каждую категорию (`/projects?c=<id>`).
  *
- * Каждый URL — отдельный одиночный GET со своей паузой, поэтому план влияет на число
- * запросов за цикл. Чтобы не выйти за согласованный объём доступа, в план попадают
- * только URL, объявленные в `source.allowedUrls`; остальные отбрасываются с пометкой.
+ * Каждый URL — отдельный одиночный GET со своей паузой, поэтому план напрямую
+ * определяет число запросов за цикл. Категории берутся из полного каталога сайта,
+ * поэтому жёсткого списка разрешённых URL больше нет: допустим любой положительный
+ * числовой id, но только по пути `/projects` (проверяется в validateSourceUrl).
  */
 
 /** Базовый путь страницы списка заданий. */
@@ -38,7 +39,9 @@ export function effectiveCategorySelection(selections = []) {
       if (Number.isFinite(numeric) && numeric > 0) ids.add(numeric);
     }
   }
-  return ids.size === 0 ? { selection: [], source: 'none' } : { selection: [...ids].sort((a, b) => a - b), source: 'categories' };
+  return ids.size === 0
+    ? { selection: [], source: 'none' }
+    : { selection: [...ids].sort((a, b) => a - b), source: 'categories' };
 }
 
 /**
@@ -46,95 +49,40 @@ export function effectiveCategorySelection(selections = []) {
  *
  * @param {object} options
  * @param {string} options.base — базовый адрес («https://kwork.ru»)
- * @param {Array} options.allowedUrls — объявленные URL из конфигурации
  * @param {number[]|'all'|null} options.selection — выбранные категории
  * @returns {{
- *   urls: Array<{url: string, reason: string, categoryId: number|null, allowed: boolean}>,
- *   skipped: Array<{url: string, reason: string}>,
+ *   urls: Array<{url: string, reason: string, categoryId: number|null}>,
  *   mode: 'all'|'categories'
  * }}
  */
-export function buildPollPlan({ base = 'https://kwork.ru', allowedUrls = [], selection = null } = {}) {
-  const declared = new Set(
-    (allowedUrls ?? [])
-      .filter((entry) => entry && entry.enabled !== false)
-      .map((entry) => normalizedUrl(entry.url))
-      .filter(Boolean)
-  );
-  // Настройки объявленных URL: их нужно перенести в план, иначе потеряется
-  // глубина пагинации (`pages`) и признак `pagination`.
-  const declaredEntries = new Map(
-    (allowedUrls ?? [])
-      .filter((entry) => entry && entry.enabled !== false)
-      .map((entry) => [normalizedUrl(entry.url), entry])
-  );
-
+export function buildPollPlan({ base = 'https://kwork.ru', selection = null } = {}) {
   const generalUrl = allProjectsUrl(base);
   const urls = [];
-  const skipped = [];
 
-  const push = (url, reason, categoryId) => {
-    const normalized = normalizedUrl(url);
-    if (!declared.has(normalized)) {
-      skipped.push({ url, reason: 'url-not-declared' });
-      return;
-    }
-    if (urls.some((entry) => normalizedUrl(entry.url) === normalized)) return;
-    const declaredEntry = declaredEntries.get(normalized) ?? {};
-    urls.push({
-      url,
-      reason,
-      categoryId,
-      allowed: true,
-      label: declaredEntry.label ?? null,
-      // Настройки берём из объявленного URL: иначе пагинация схлопнется до одной страницы.
-      pages: declaredEntry.pages ?? 1,
-      pagination: declaredEntry.pagination === true
-    });
-  };
-
-  // Категории не выбраны — один запрос на общий список: приходят все задания.
-  if (selection === null || selection === undefined || (Array.isArray(selection) && selection.length === 0)) {
-    push(generalUrl, 'no-selection', null);
-    // Общий список не объявлен в доступе: опрашиваем объявленные URL,
-    // чтобы бот не остался совсем без запросов.
-    if (urls.length === 0) {
-      for (const entry of allowedUrls ?? []) {
-        if (!entry?.url || entry.enabled === false) continue;
-        push(entry.url, 'declared', categoryIdOfUrl(entry.url));
-      }
-    }
-    return { urls, skipped, mode: 'all' };
+  // Категории не выбраны или «все категории» — один запрос на общий список.
+  if (selection === null || selection === undefined || selection === 'all') {
+    return {
+      urls: [{ url: generalUrl, reason: selection === 'all' ? 'all-categories' : 'no-selection', categoryId: null }],
+      mode: 'all'
+    };
   }
 
-  // «Все категории» — один запрос на общий список.
-  if (selection === 'all') {
-    push(generalUrl, 'all-categories', null);
-    // Общий список не объявлен — опрашиваем объявленные категории: это лучше, чем ничего.
-    if (urls.length === 0) {
-      for (const entry of allowedUrls ?? []) {
-        if (!entry?.url || entry.enabled === false) continue;
-        push(entry.url, 'declared', categoryIdOfUrl(entry.url));
-      }
-    }
-    return { urls, skipped, mode: 'all' };
+  const ids = [...new Set((Array.isArray(selection) ? selection : [selection])
+    .map(Number)
+    .filter((id) => Number.isFinite(id) && id > 0))]
+    .sort((a, b) => a - b);
+
+  if (ids.length === 0) {
+    return {
+      urls: [{ url: generalUrl, reason: 'no-selection', categoryId: null }],
+      mode: 'all'
+    };
   }
 
-  const ids = [...new Set(selection.map(Number).filter((id) => Number.isFinite(id) && id > 0))].sort((a, b) => a - b);
   for (const id of ids) {
-    push(categoryUrl(base, id), 'category', id);
+    urls.push({ url: categoryUrl(base, id), reason: 'category', categoryId: id });
   }
-
-  // Ни одна выбранная категория не объявлена в доступе: опрашиваем объявленное,
-  // чтобы не остаться без заданий молча.
-  if (urls.length === 0) {
-    for (const entry of allowedUrls ?? []) {
-      if (!entry?.url || entry.enabled === false) continue;
-      push(entry.url, 'declared', categoryIdOfUrl(entry.url));
-    }
-    return { urls, skipped, mode: 'declared' };
-  }
-  return { urls, skipped, mode: 'categories' };
+  return { urls, mode: 'categories' };
 }
 
 /** Категория из URL вида `?c=<id>` (или null для общего списка). */
@@ -149,30 +97,4 @@ export function categoryIdOfUrl(url) {
   } catch {
     return null;
   }
-}
-
-/** URL без query-части «page» и без хвостовых слешей: для сравнения объявленного и построенного. */
-export function normalizedUrl(url) {
-  if (!url) return null;
-  try {
-    const parsed = new URL(String(url));
-    parsed.searchParams.delete('page');
-    const query = parsed.searchParams.toString();
-    return `${parsed.origin}${parsed.pathname}${query ? `?${query}` : ''}`.replace(/\/+$/, '');
-  } catch {
-    return null;
-  }
-}
-
-/** Базовый адрес из конфигурации: берём origin первого объявленного URL. */
-export function baseFromAllowedUrls(allowedUrls = []) {
-  for (const entry of allowedUrls ?? []) {
-    if (!entry?.url) continue;
-    try {
-      return new URL(entry.url).origin;
-    } catch {
-      // Пробуем следующий.
-    }
-  }
-  return 'https://kwork.ru';
 }

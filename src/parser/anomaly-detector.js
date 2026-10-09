@@ -25,7 +25,6 @@ const HARD_ACCESS = /(access\s+denied|403\s+forbidden|доступ\s+запре�
 const HARD_BLOCK = /(вы\s+заблокирован|заблокирован[аы]?\s+до|too\s+many\s+requests|слишком\s+много\s+запросов|rate\s+limit)/i;
 
 const CHALLENGE_ELEMENT = /(^|[-_])(g?-?recaptcha|h-captcha|hcaptcha|cf-turnstile|turnstile|captcha)([-_]|$)/i;
-const CHALLENGE_SCRIPT_SRC = /(google\.com\/recaptcha|gstatic\.com\/recaptcha|hcaptcha\.com|challenges\.cloudflare\.com)/i;
 const VISIBLE_CAPTCHA_INPUT = /(captcha|recaptcha|smart-?captcha)/i;
 
 function isHiddenSource(source) {
@@ -158,16 +157,6 @@ export function detectPageAnomaliesDetailed(html) {
   if (/<div[^>]+id=["'](root|app)["'][^>]*>\s*<\/div>/i.test(source)) structureSignals.push('empty-spa-root');
 
   return { hard, soft, markers, structureSignals };
-}
-
-/** Совместимый вид: список марок, по которым принимается решение об остановке. */
-export function detectPageAnomalies(html) {
-  return detectPageAnomaliesDetailed(html).hard.map((entry) => entry.kind);
-}
-
-/** Признак настоящей проверки/блокировки (для источника). */
-export function hasHardAnomaly(html) {
-  return detectPageAnomaliesDetailed(html).hard.length > 0;
 }
 
 /**

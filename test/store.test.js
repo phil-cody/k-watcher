@@ -156,6 +156,35 @@ test('addToIndex не мутирует исходный индекс', () => {
   assert.ok(entry.recordedAt, 'в записи должно быть время');
 });
 
+test('запись индекса хранит url задания и url списка раздельно', () => {
+  const index = { keys: { stableId: {}, url: {}, composite: {} }, total: 0 };
+  const next = addToIndex(makeJob(), index, {
+    sourceRef: { url: 'https://kwork.ru/projects?c=37', kworkCategoryId: 37, title: 'Вёрстка лендинга' }
+  });
+  const entry = next.keys.stableId['1001'];
+  // sourceUrl — адрес самого задания, а не списка категории.
+  assert.equal(entry.sourceUrl, 'https://kwork.ru/projects/1001/verstka-lendinga');
+  assert.equal(entry.listingUrl, 'https://kwork.ru/projects?c=37');
+  assert.equal(entry.kworkCategoryId, 37);
+});
+
+test('старый формат sourceUrl-категория мигрирует в listingUrl при чтении', () => {
+  const index = {
+    keys: {
+      stableId: { '1': { dedupKey: 'id:1', sourceUrl: 'https://kwork.ru/projects?c=37', title: 'A' } },
+      url: {},
+      composite: {}
+    },
+    total: 1
+  };
+  // seenKeys пустой, но источник c=37 надёжен → задание удаляется, значит legacy sourceUrl
+  // был правильно распознан как listingUrl (иначе задание осталось бы «защищённым»).
+  const { removed } = pruneIndex(index, new Set(), {
+    reliableSourceUrls: new Set(['https://kwork.ru/projects?c=37'])
+  });
+  assert.equal(removed.stableId, 1, 'legacy sourceUrl-категория должна мигрировать в listingUrl');
+});
+
 test('activeJobCount считает уникальные задания, а не ключи', () => {
   const index = {
     keys: {

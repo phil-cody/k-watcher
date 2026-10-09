@@ -7,72 +7,20 @@
   "source": {
     "enabled": true,
     "provider": "kwork",
+    "baseUrl": "https://kwork.ru",
     "userAgent": "kwork-watcher-bot/0.1 (personal research; single sequential GET; contact: owner)",
     "requestTimeoutMs": 20000,
     "maxCardsPerRequest": 2000,
-    "allowedUrls": [
-      {
-        "id": "projects-all",
-        "url": "https://kwork.ru/projects",
-        "label": "Все задания Kwork",
-        "enabled": true,
-        "pages": 1,
-        "pagination": false,
-        "confirmation": "Нужен для режима «категории не выбраны» и «все категории»: один запрос на общий список."
-      },
-      {
-        "id": "projects-c79",
-        "url": "https://kwork.ru/projects?c=79",
-        "label": "Задания Kwork, категория c=79",
-        "category": {
-          "kworkId": 79,
-          "expected": "Создание сайта - Новый сайт",
-          "confirmed": "pending"
-        },
-        "enabled": true,
-        "requestedByUser": "Пользователь добавил URL в чате 2026-10-07 (обновление списка разрешённых URL).",
-        "pages": 1,
-        "pagination": false
-      },
-      {
-        "id": "projects-c38",
-        "url": "https://kwork.ru/projects?c=38",
-        "label": "Задания Kwork, категория c=38",
-        "category": {
-          "kworkId": 38,
-          "expected": "Вёрстка (уточняется)",
-          "confirmed": "pending"
-        },
-        "enabled": true,
-        "requestedByUser": "Пользователь добавил URL в чате 2026-10-07 (обновление списка разрешённых URL).",
-        "pages": 1,
-        "pagination": false
-      },
-      {
-        "id": "projects-c37",
-        "url": "https://kwork.ru/projects?c=37",
-        "label": "Задания Kwork, категория c=37",
-        "category": {
-          "kworkId": 37,
-          "expected": "Доработка и настройка сайта (уточняется)",
-          "confirmed": "pending"
-        },
-        "enabled": true,
-        "requestedByUser": "Пользователь добавил URL в чате 2026-10-07 (обновление списка разрешённых URL).",
-        "pages": 1,
-        "pagination": false
-      }
-    ],
     "permission": {
       "status": "confirmed",
       "confirmedAt": "2026-10-07",
       "updatedAt": "2026-10-07",
-      "scope": "Одиночные GET-запросы страниц списка заданий Kwork (включая URL категорий с параметром ?c=) со случайной частотой 4–10 минут. Только эти URL.",
+      "scope": "Одиночные GET-запросы страниц списка заданий Kwork (https://kwork.ru/projects) со случайной частотой 4–10 минут. Допустимы параметры категории ?c=<id>, подраздела ?attr=<id> и страницы ?page=<n>; id берутся из каталога категорий config/categories.json.",
       "scopeChanges": [
         {
-          "at": "2026-10-07",
-          "change": "Добавлены URL категорий https://kwork.ru/projects?c=79, ?c=38, ?c=37 по запросу пользователя.",
-          "note": "Параметры запроса разрешены только для явно перечисленных URL; страницы отдельных заданий по-прежнему запрещены."
+          "at": "2026-10-08",
+          "change": "Убран жёсткий список URL категорий в source.allowedUrls: URL строятся из полного каталога категорий, источник проверяет только структуру /projects и параметры c/attr/page.",
+          "note": "Страницы отдельных заданий, API, поиск, профили и аккаунтные разделы по-прежнему запрещены."
         }
       ],
       "notCovered": [
@@ -88,7 +36,7 @@
       "maxPagesPerUrl": 6,
       "note": "Страницы категории — это обычные URL вида ?c=38&page=2, которые бот добавляет к своему списку запросов. Глубина определяется полем last_page из самой выдачи: бот добирает страницы, пока Kwork сообщает, что они есть, но не больше maxPagesPerUrl (жёсткий предел 20). Каждый URL — отдельный одиночный GET со своей случайной паузой 240–600 с. Значение 3 для 4 URL означает до 12 запросов за цикл."
     },
-    "pollPlanNote": "Опрос строится по выбранным категориям: нет выбора или «все категории» — один запрос на /projects; выбраны категории — запрос на каждую (/projects?c=<id>). В план попадают только URL из allowedUrls."
+    "pollPlanNote": "Опрос строится по выбранным категориям: нет выбора или «все категории» — один запрос на /projects; выбраны категории — запрос на каждую (/projects?c=<id>). Допустим любой положительный id из каталога config/categories.json; источник дополнительно проверяет структуру URL (/projects, параметры c/attr/page)."
   },
   "targetCategories": [
     {
@@ -189,8 +137,8 @@
   "telegram": {
     "enabled": true,
     "pollTimeoutSeconds": 30,
-    "autoApprove": false,
-    "autoApproveNote": "false — доступ выдаёт владелец командой /approve <id>. true — любой, кто напишет /start, сразу получает доступ (только для доверенного окружения).",
+    "autoApprove": true,
+    "autoApproveNote": "true — любой, кто напишет /start, сразу получает доступ (подключение логируется). false — сообщения незнакомцев игнорируются (для публичного окружения).",
     "menuFilter": [],
     "menuFilterNote": "Пустой список — публиковать все команды из config/texts.json → commands.telegramMenu. Перечислите команды, чтобы показать только их.",
     "commandsNote": "Список команд меню и их описания живут в config/texts.json (commands.telegramMenu). Публикуются в Telegram при запуске режима bot через setMyCommands."
@@ -229,17 +177,6 @@
       "79": "markup-by-layout"
     },
     "byCategoryLinkId": {},
-    "knownOutsideProfile": {
-      "68": "3D-моделирование — вне профиля исполнителя",
-      "47": "Копирайтинг и статьи — вне профиля",
-      "273": "SEO — вне профиля",
-      "75": "Обработка данных — вне профиля",
-      "46": "Таргетинг — вне профиля",
-      "76": "Видео — вне профиля",
-      "80": "1C/Битрикс-обмен — вне профиля",
-      "81": "Тестирование — вне профиля",
-      "112": "Продвижение на Авито — вне профиля"
-    },
     "note": "category_id 79 покрывает и «Верстка по макету», и «Доработка и адаптация верстки»: разделить их по числовому id нельзя (в URL это ?c=79&attr=224 и ?c=79&attr=226). Полный каталог категорий — config/categories.json, обновление: node src/index.js categories-refresh."
   },
   "categoryCatalog": {
@@ -247,79 +184,13 @@
     "howToFindId": "Откройте нужную категорию на Kwork: в адресе будет параметр ?c=<id>. Этот id и указывайте.",
     "entries": {
       "79": {
-        "label": "Создание сайта - Новый сайт",
-        "section": "Создание сайта",
-        "subsection": "Новый сайт",
         "inDefault": true
       },
       "38": {
-        "label": "Доработка и настройка сайта - Доработка сайта",
-        "section": "Доработка и настройка сайта",
-        "subsection": "Доработка сайта",
         "inDefault": true
       },
       "37": {
-        "label": "Вёрстка - Верстка по макету; Вёрстка - Доработка и адаптация верстки",
-        "section": "Вёрстка",
-        "subsection": "Верстка по макету",
-        "inDefault": true,
-        "subsections": [
-          "Доработка и адаптация верстки"
-        ]
-      },
-      "68": {
-        "label": "3D-моделирование — вне профиля исполнителя",
-        "section": null,
-        "subsection": null,
-        "inDefault": false
-      },
-      "47": {
-        "label": "Копирайтинг и статьи — вне профиля",
-        "section": null,
-        "subsection": null,
-        "inDefault": false
-      },
-      "273": {
-        "label": "SEO — вне профиля",
-        "section": null,
-        "subsection": null,
-        "inDefault": false
-      },
-      "75": {
-        "label": "Обработка данных — вне профиля",
-        "section": null,
-        "subsection": null,
-        "inDefault": false
-      },
-      "46": {
-        "label": "Таргетинг — вне профиля",
-        "section": null,
-        "subsection": null,
-        "inDefault": false
-      },
-      "76": {
-        "label": "Видео — вне профиля",
-        "section": null,
-        "subsection": null,
-        "inDefault": false
-      },
-      "80": {
-        "label": "1C/Битрикс-обмен — вне профиля",
-        "section": null,
-        "subsection": null,
-        "inDefault": false
-      },
-      "81": {
-        "label": "Тестирование — вне профиля",
-        "section": null,
-        "subsection": null,
-        "inDefault": false
-      },
-      "112": {
-        "label": "Продвижение на Авито — вне профиля",
-        "section": null,
-        "subsection": null,
-        "inDefault": false
+        "inDefault": true
       }
     },
     "fullCatalogFile": "config/categories.json",

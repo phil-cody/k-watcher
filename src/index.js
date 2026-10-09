@@ -18,6 +18,7 @@ import { pathToFileURL } from 'node:url';
 import { createServer } from 'node:http';
 
 import { loadConfig, validateModelSecrets, validateTelegramSecrets } from './config/load-config.js';
+import { buildPollPlan, allProjectsUrl } from './source/poll-plan.js';
 import { createLogger } from './util/logger.js';
 import { KworkListingParser } from './parser/job-parser.js';
 import { JobStore } from './storage/job-store.js';
@@ -58,6 +59,11 @@ function reportValidation(logger, validation) {
   for (const warning of validation.warnings) logger.warn(warning);
   for (const error of validation.errors) logger.error(error);
   return validation.ok;
+}
+
+/** Базовый адрес источника (origin) из конфигурации. */
+function baseUrlOf(config) {
+  return String(config?.source?.baseUrl ?? 'https://kwork.ru').replace(/\/+$/, '');
 }
 
 async function bootstrap({ requireLiveSource = false, rootDir = process.cwd(), logger, notifier = null }) {
@@ -108,7 +114,6 @@ async function bootstrap({ requireLiveSource = false, rootDir = process.cwd(), l
   // Счётчик расхода модели: нужен, чтобы не выжечь бесплатную квоту.
   if (typeof modelAdapter.initUsage === 'function') await modelAdapter.initUsage();
   const source = new KworkHtmlSource({
-    allowedUrls: config.source.allowedUrls,
     userAgent: config.source.userAgent,
     timeoutMs: config.source.requestTimeoutMs,
     logger,
@@ -135,10 +140,7 @@ async function bootstrap({ requireLiveSource = false, rootDir = process.cwd(), l
     texts
   });
 
-  const profileTemplate = await readTemplateProfile({
-    fallbackPath: config.profilePath ?? null,
-    samplePath: resolve(rootDir, 'config', 'performer-profile.json')
-  });
+  const profileTemplate = await readTemplateProfile(resolve(rootDir, 'config', 'performer-profile.json'));
 
   return {
     config,
@@ -366,13 +368,21 @@ async function dryRun({ rootDir, logger, fixturesDir = 'test/fixtures', useFixtu
 }
 
 async function runDashboard({ rootDir, logger, port = 8787, host = '127.0.0.1' }) {
+  // Dashboard без аутентификации отдаёт состояние (включая id чатов получателей),
+  // поэтому на внешний интерфейс его выставлять нельзя — только loopback.
+  const isLocalOnly = ['127.0.0.1', 'localhost', '::1'].includes(String(host));
+  if (!isLocalOnly) {
+    throw new Error(
+      `Dashboard не имеет аутентификации и не может слушать внешний адрес: ${host}. Используйте 127.0.0.1 и туннель SSH.`
+    );
+  }
   const { config, profile, store, texts } = await bootstrap({ rootDir, logger });
   const server = createServer(async (request, response) => {
     if (request.url === '/api/state') {
       const state = await store.readState();
       const body = JSON.stringify(
         {
-          plan: config.source.allowedUrls,
+          plan: buildPollPlan({ base: baseUrlOf(config) }),
           schedule: config.schedule,
           categories: config.targetCategories,
           stats: store.stats,
@@ -390,7 +400,7 @@ async function runDashboard({ rootDir, logger, port = 8787, host = '127.0.0.1' }
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     response.end(
       buildDashboardHtml({
-        plan: config.source.allowedUrls,
+        plan: buildPollPlan({ base: baseUrlOf(config) }),
         schedule: config.schedule,
         categories: config.targetCategories,
         profile,
@@ -405,11 +415,6 @@ async function runDashboard({ rootDir, logger, port = 8787, host = '127.0.0.1' }
   await new Promise((resolvePromise) => server.listen(port, host, resolvePromise));
   logger.info(texts.t('logs.dashboardAvailable', { url: `http://${host}:${port}` }));
   logger.info(texts.t('logs.dashboardReadOnly'));
-  // Dashboard без аутентификации: если его выставили не на localhost, это надо сказать вслух.
-  const isLocalOnly = ['127.0.0.1', 'localhost', '::1'].includes(String(host));
-  if (!isLocalOnly) {
-    logger.warn(texts.t('logs.dashboardPublicWarning', { host }));
-  }
   return server;
 }
 async function main() {
@@ -472,7 +477,7 @@ async function main() {
           `${texts.t('cli.statusRecentEntry', { date: entry.recordedAt, id: entry.id ?? entry.url, title: entry.title })}\n`
         );
       }
-      const urls = (config.source.allowedUrls ?? []).map((entry) => entry.url).join(', ');
+      const urls = allProjectsUrl(baseUrlOf(config));
       process.stdout.write(
         `${texts.t('cli.statusAllowedUrls', { urls: urls || texts.t('cli.statusAllowedUrlsNone') })}\n`
       );
@@ -561,20 +566,16 @@ async function main() {
       const t = (path, params) => texts.t(path, params);
       logger.info(t('cli.refreshTitle'));
 
-      // Источник: сохранённый HTML (--file) или один GET на разрешённый URL списка заданий.
+      // Источник: сохранённый HTML (--file) или один GET на страницу списка заданий.
       let html = null;
       let source = null;
       if (flags.file) {
         html = await readFile(resolve(rootDir, flags.file), 'utf8');
         source = resolve(rootDir, flags.file);
       } else {
-        const target = config.source.allowedUrls.find((entry) => entry.enabled !== false);
-        if (!target) {
-          process.stderr.write(`${t('cli.refreshNoSource')}\n`);
-          return 2;
-        }
-        source = target.url;
-        const response = await fetch(target.url, {
+        const target = allProjectsUrl(baseUrlOf(config));
+        source = target;
+        const response = await fetch(target, {
           headers: { 'user-agent': config.source.userAgent, accept: 'text/html,application/xhtml+xml' }
         });
         if (!response.ok) {
@@ -643,7 +644,7 @@ async function main() {
         allowedUserId: preloaded.secrets.telegramAllowedUserId,
         chatId: preloaded.secrets.telegramChatId ?? telegramState.chatId,
         telegramState,
-        autoApprove: preloaded.telegram?.autoApprove === true,
+        autoApprove: preloaded.telegram?.autoApprove !== false,
         logger
       });
 
@@ -708,7 +709,6 @@ async function main() {
         store,
         scheduler,
         client,
-        cycleRunner,
         logger,
         modelInfo: modelAdapter.label ?? modelAdapter.provider,
         modelUsage: typeof modelAdapter.usage === 'object' ? modelAdapter.usage : null,

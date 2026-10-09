@@ -3,7 +3,8 @@
  *
  * Запрещено писать в логи: токены Telegram, ключи моделей, заголовки авторизации,
  * полный HTML и лишние персональные данные. Все значения проходят через
- * redact(), который вырезает похожие на секреты подстроки.
+ * redact(), который вырезает похожие на секреты подстроки. Ключи с секретами
+ * редактируются и во вложенных объектах — иначе утечёт `details: { token: … }`.
  */
 
 const SECRET_PATTERNS = [
@@ -24,31 +25,42 @@ export function redact(value, { maxLength = 500 } = {}) {
   return text;
 }
 
-function safeMeta(meta) {
+/** Похож ли ключ метаданных на секрет (с учётом camelCase/snake_case). */
+function isSensitiveKey(key) {
+  const lower = String(key).toLowerCase();
+  return /token|secret|password|authorization|cookie|apikey|api_key|api-key/.test(lower) || /\bkey\b/.test(lower);
+}
+
+/**
+ * Безопасная сериализация метаданных: рекурсивно редактирует секретные ключи
+ * и длинные строки (HTML/тело ответа) на любой вложенности.
+ */
+function safeMeta(meta, depth = 0) {
+  if (depth > 6) return '[redacted]'; // защита от циклических и аномально глубоких структур
+  if (meta === null || meta === undefined) return meta;
+  if (typeof meta === 'string') return redact(meta, { maxLength: 200 });
+  if (typeof meta !== 'object') return meta;
+  if (Array.isArray(meta)) return meta.map((item) => safeMeta(item, depth + 1));
   const out = {};
-  for (const [key, value] of Object.entries(meta ?? {})) {
-    if (/token|key|secret|password|authorization|cookie/i.test(key)) {
+  for (const [key, value] of Object.entries(meta)) {
+    if (isSensitiveKey(key)) {
       out[key] = '[redacted]';
       continue;
     }
-    if (typeof value === 'string') {
-      // Длинные строки почти наверняка HTML или тело ответа — не логируем целиком.
-      out[key] = redact(value, { maxLength: 200 });
-      continue;
-    }
-    out[key] = value;
+    out[key] = safeMeta(value, depth + 1);
   }
   return out;
 }
 
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40, silent: 100 };
 
-export function createLogger({ level = 'info', sink = console } = {}) {
+export function createLogger({ level = 'info', sink = console, baseContext = null } = {}) {
   const threshold = LEVELS[level] ?? LEVELS.info;
   const write = (name) => (message, meta) => {
     if (LEVELS[name] < threshold) return;
+    const merged = baseContext ? { ...baseContext, ...(meta ?? {}) } : meta;
     const line = `${new Date().toISOString()} [${name}] ${redact(message)}`;
-    const payload = meta && Object.keys(meta).length > 0 ? ` ${JSON.stringify(safeMeta(meta))}` : '';
+    const payload = merged && Object.keys(merged).length > 0 ? ` ${JSON.stringify(safeMeta(merged))}` : '';
     if (name === 'error') sink.error(line + payload);
     else if (name === 'warn') sink.warn(line + payload);
     else sink.log(line + payload);
@@ -59,16 +71,13 @@ export function createLogger({ level = 'info', sink = console } = {}) {
     info: write('info'),
     warn: write('warn'),
     error: write('error'),
-    /** Дочерний логгер с постоянным контекстом. */
+    /** Дочерний логгер с постоянным контекстом (накапливается при вложенных child()). */
     child(context = {}) {
-      const child = createLogger({ level, sink });
-      return {
-        ...child,
-        debug: (message, meta) => child.debug(message, { ...context, ...meta }),
-        info: (message, meta) => child.info(message, { ...context, ...meta }),
-        warn: (message, meta) => child.warn(message, { ...context, ...meta }),
-        error: (message, meta) => child.error(message, { ...context, ...meta })
-      };
+      return createLogger({
+        level,
+        sink,
+        baseContext: { ...(baseContext ?? {}), ...(context ?? {}) }
+      });
     }
   };
 }

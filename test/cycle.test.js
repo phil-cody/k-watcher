@@ -75,32 +75,23 @@ function makeJobFailingNotifier({ failJobs = 1 } = {}) {
   };
 }
 
-/** Один разрешённый URL, чтобы тест не зависел от количества URL в конфигурации. */
-function makeRunnerConfig(dir, url = 'https://kwork.ru/projects') {
+/** Конфиг теста: baseUrl задаёт адрес списка заданий, категории добавляются параметром c. */
+function makeRunnerConfig(dir) {
   return {
     ...config,
     dataDir: dir,
     source: {
       ...config.source,
-      allowedUrls: [
-        {
-          id: 'projects-test',
-          url,
-          label: 'Тестовый список заданий',
-          enabled: true,
-          pages: 1,
-          pagination: false
-        }
-      ]
+      baseUrl: 'https://kwork.ru'
     }
   };
 }
 
-async function makeRunner({ html, notifier, sourceUrl = 'https://kwork.ru/projects', logger = null, configPatch = {}, source = null }) {
+async function makeRunner({ html, notifier, logger = null, configPatch = {}, source = null }) {
   const dir = await mkdtemp(join(tmpdir(), 'kwork-cycle-'));
   const store = await new JobStore({ dataDir: dir }).init();
   const parser = new KworkListingParser({ targetCategories: config.targetCategories });
-  const base = makeRunnerConfig(dir, sourceUrl);
+  const base = makeRunnerConfig(dir);
   // source мержим вложенно: иначе патч одного поля затирает pagination/allowedUrls.
   const merged = {
     ...base,
@@ -529,36 +520,37 @@ test('логируется одно сводное сообщение по ит�
   }
 });
 
-test('пагинация запрашивает страницы категории по порядку', async () => {
-  const html = fixture('listing-standard.html');
+test('пустая страница останавливает пагинацию и фиксируется в состоянии', async () => {
+  // Первая страница сообщает last_page=2, вторая пуста — проход останавливается сам.
+  const html = fixture('listing-embedded-json.html').replace(
+    '"id":3259320',
+    '"id":3259320,"pagination":{"current_page":1,"last_page":2,"total":16,"per_page":12}'
+  );
   const requested = [];
   const notifier = makeNotifier();
   const source = {
     fetchPage: async (url) => {
       requested.push(url);
-      // Вторая страница пуста — проход должен остановиться сам.
       return { html: url.includes('page=2') ? '<html><body><main></main></body></html>' : html, status: 200, url };
     }
   };
   const { runner, cleanup } = await makeRunner({
     notifier,
     source,
-    sourceUrl: 'https://kwork.ru/projects?c=79',
     configPatch: {
       source: {
         ...config.source,
         pruneMissingJobs: false,
-        pagination: { enabled: true, maxPagesPerUrl: 3 },
-        allowedUrls: [{ id: 'c79', url: 'https://kwork.ru/projects?c=79', enabled: true, pages: 3, pagination: true }]
+        pagination: { enabled: true, maxPagesPerUrl: 3 }
       }
     }
   });
   try {
     const summary = await runner.runOnce();
-    assert.deepEqual(requested, ['https://kwork.ru/projects?c=79', 'https://kwork.ru/projects?c=79&page=2']);
+    assert.deepEqual(requested, ['https://kwork.ru/projects', 'https://kwork.ru/projects?page=2']);
     assert.equal(summary.pages.length, 2, 'пустая вторая страница фиксируется в состоянии');
     assert.equal(summary.pages[1].cards, 0);
-    assert.equal(summary.newJobs, 3, 'карточки первой страницы обработаны');
+    assert.equal(summary.newJobs, 4, 'карточки первой страницы обработаны');
   } finally {
     await cleanup();
   }
@@ -586,19 +578,17 @@ test('страницы обходятся автоматически по last_p
   const { runner, cleanup } = await makeRunner({
     notifier,
     source,
-    sourceUrl: 'https://kwork.ru/projects?c=38',
     configPatch: {
       source: {
         ...config.source,
         pruneMissingJobs: false,
-        pagination: { enabled: true, maxPagesPerUrl: 5 },
-        allowedUrls: [{ id: 'c38', url: 'https://kwork.ru/projects?c=38', enabled: true, pages: 1 }]
+        pagination: { enabled: true, maxPagesPerUrl: 5 }
       }
     }
   });
   try {
     await runner.runOnce();
-    assert.deepEqual(requested, ['https://kwork.ru/projects?c=38', 'https://kwork.ru/projects?c=38&page=2']);
+    assert.deepEqual(requested, ['https://kwork.ru/projects', 'https://kwork.ru/projects?page=2']);
   } finally {
     await cleanup();
   }
@@ -620,20 +610,18 @@ test('maxPagesPerUrl ограничивает автопроход даже ес
   const { runner, cleanup } = await makeRunner({
     notifier,
     source,
-    sourceUrl: 'https://kwork.ru/projects?c=38',
     configPatch: {
       source: {
         ...config.source,
         pruneMissingJobs: false,
-        pagination: { enabled: true, maxPagesPerUrl: 2 },
-        allowedUrls: [{ id: 'c38', url: 'https://kwork.ru/projects?c=38', enabled: true, pages: 1 }]
+        pagination: { enabled: true, maxPagesPerUrl: 2 }
       }
     }
   });
   try {
     await runner.runOnce();
     assert.equal(requested.length, 2, 'не больше maxPagesPerUrl запросов на URL');
-    assert.deepEqual(requested, ['https://kwork.ru/projects?c=38', 'https://kwork.ru/projects?c=38&page=2']);
+    assert.deepEqual(requested, ['https://kwork.ru/projects', 'https://kwork.ru/projects?page=2']);
   } finally {
     await cleanup();
   }
@@ -679,19 +667,17 @@ test('пагинация выключена — запрашивается то�
   const { runner, cleanup } = await makeRunner({
     notifier,
     source,
-    sourceUrl: 'https://kwork.ru/projects?c=79',
     configPatch: {
       source: {
         ...config.source,
         pruneMissingJobs: false,
-        pagination: { enabled: false, maxPagesPerUrl: 3 },
-        allowedUrls: [{ id: 'c79', url: 'https://kwork.ru/projects?c=79', enabled: true, pages: 3, pagination: true }]
+        pagination: { enabled: false, maxPagesPerUrl: 3 }
       }
     }
   });
   try {
     await runner.runOnce();
-    assert.deepEqual(requested, ['https://kwork.ru/projects?c=79']);
+    assert.deepEqual(requested, ['https://kwork.ru/projects']);
   } finally {
     await cleanup();
   }

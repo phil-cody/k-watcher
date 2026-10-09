@@ -2,12 +2,13 @@
  * Источник HTML.
  *
  * Подтверждённый объём: одиночные GET-запросы страниц СПИСКА заданий
- * (https://kwork.ru/projects и подтверждённые пользователем URL категорий
- * с параметрами ?c=...).
+ * (https://kwork.ru/projects и её варианты по категории/подразделу/странице —
+ * ?c=.., ?attr=.., ?page=..). Список категорий приходит из полного каталога
+ * сайта, поэтому в коде он не перечисляется.
  *
  * Модуль физически не умеет больше:
  *  - только GET;
- *  - только URL из source.allowedUrls конфигурации (сравнение по полному URL);
+ *  - только страницы списка /projects (проверка структуры URL, не белый список);
  *  - один запрос за раз (никакого параллелизма);
  *  - без cookies, авторизации, заголовков авторизации и обхода защиты;
  *  - при 429/CAPTCHA/403/блокировке источник останавливается, а не повторяет запрос.
@@ -17,7 +18,7 @@
  */
 
 import { describeAnomalyDiagnostics, detectPageAnomaliesDetailed, ANOMALY } from '../parser/anomaly-detector.js';
-import { isDeclaredPageVariant, validateSourceUrl } from '../config/load-config.js';
+import { validateSourceUrl } from '../config/load-config.js';
 import { createTexts } from '../texts/texts.js';
 
 export const STOP_REASONS = {
@@ -33,6 +34,10 @@ export const STOP_REASONS = {
   PAUSED_BY_USER: 'paused-by-user',
   WINDOW_CLOSED: 'window-closed'
 };
+
+// Страница списка заданий не бывает больше нескольких мегабайт: предел — страховка
+// от неконтролируемого тела ответа.
+const MAX_HTML_BYTES = 5 * 1024 * 1024;
 
 const KIND_TO_STOP_REASON = {
   [ANOMALY.CAPTCHA]: STOP_REASONS.CAPTCHA,
@@ -56,20 +61,15 @@ export class SourceError extends Error {
 /** Один GET с ограниченным таймаутом. Без ретраев и без последовательных попыток. */
 export async function fetchSinglePage(
   url,
-  { userAgent, timeoutMs = 20000, fetchImpl = globalThis.fetch, allowedUrls = [], texts = null } = {}
+  { userAgent, timeoutMs = 20000, fetchImpl = globalThis.fetch, texts = null } = {}
 ) {
   const textsObject = texts ?? createTexts({ rootDir: process.cwd() });
   const t = (path, params) => textsObject.t(path, params);
-  const allowed = allowedUrls.map((entry) => entry.url);
-  const check = validateSourceUrl(url, { allowedUrls: allowed });
+  const check = validateSourceUrl(url);
   if (!check.ok) {
     throw new SourceError(t('source.urlNotAllowed', { errors: check.errors.join('; ') }), {
       stopReason: STOP_REASONS.CONFIG
     });
-  }
-  // Разрешены объявленные URL и их страницы (?page=N): это тот же список заданий.
-  if (allowed.length > 0 && !allowed.includes(url) && !isDeclaredPageVariant(url, allowed)) {
-    throw new SourceError(t('source.urlNotDeclared', { url }), { stopReason: STOP_REASONS.CONFIG });
   }
 
   const controller = new AbortController();
@@ -78,7 +78,9 @@ export async function fetchSinglePage(
   try {
     response = await fetchImpl(url, {
       method: 'GET',
-      redirect: 'follow',
+      // Без автоматического follow: редирект на другой хост/протокол не должен
+      // обходить проверку подтверждённого объёма.
+      redirect: 'manual',
       headers: {
         // Только идентификация клиента. Никаких cookies, referer-подмен и масок.
         'user-agent': userAgent,
@@ -90,16 +92,25 @@ export async function fetchSinglePage(
     throw new SourceError(
       t('source.networkError', { url, reason: error.name === 'AbortError' ? t('source.timeout') : error.message }),
       {
-      stopReason: null,
-      retryable: true,
-      details: { cause: error.name }
+        stopReason: null,
+        retryable: true,
+        details: { cause: error.name }
       }
     );
   } finally {
     clearTimeout(timer);
   }
 
+  // Редирект (3xx): конечный URL должен снова пройти проверку структуры.
   const status = response.status;
+  if (status >= 300 && status < 400) {
+    const location = typeof response.headers?.get === 'function' ? response.headers.get('location') : null;
+    throw new SourceError(t('source.redirectNotAllowed', { url, location: location ?? '—' }), {
+      stopReason: STOP_REASONS.CONFIG,
+      httpStatus: status
+    });
+  }
+
   const retryAfterHeader = typeof response.headers?.get === 'function' ? response.headers.get('retry-after') : null;
   const retryAfterSeconds = retryAfterHeader ? Number.parseInt(retryAfterHeader, 10) || null : null;
 
@@ -131,6 +142,13 @@ export async function fetchSinglePage(
   }
 
   const html = await response.text();
+  // Защита от неконтролируемого тела: страница списка не бывает больше пары мегабайт.
+  if (html.length > MAX_HTML_BYTES) {
+    throw new SourceError(
+      t('source.responseTooLarge', { bytes: html.length, limit: MAX_HTML_BYTES }),
+      { stopReason: STOP_REASONS.CONFIG }
+    );
+  }
   const detailed = detectPageAnomaliesDetailed(html);
   if (detailed.hard.length > 0) {
     const diagnostics = describeAnomalyDiagnostics({ status, url, html });
@@ -159,9 +177,8 @@ export async function fetchSinglePage(
  * Параллельные вызовы запрещены: второй вызов получает ошибку, а не второй запрос.
  */
 export class KworkHtmlSource {
-  constructor({ allowedUrls = [], userAgent, timeoutMs = 20000, fetchImpl = globalThis.fetch, logger = null, texts = null } = {}) {
+  constructor({ userAgent, timeoutMs = 20000, fetchImpl = globalThis.fetch, logger = null, texts = null } = {}) {
     this.texts = texts ?? createTexts({ rootDir: process.cwd() });
-    this.allowedUrls = allowedUrls;
     this.userAgent = userAgent;
     this.timeoutMs = timeoutMs;
     this.fetchImpl = fetchImpl;
@@ -170,18 +187,6 @@ export class KworkHtmlSource {
     this.requestCount = 0;
     this.lastRequestAt = null;
     this.lastSoftAnomalies = [];
-  }
-
-  /** Список URL, которые разрешено запрашивать (для показа пользователю перед запуском). */
-  describePlan() {
-    return this.allowedUrls.map((entry) => ({
-      id: entry.id,
-      url: entry.url,
-      label: entry.label ?? null,
-      category: entry.category ?? null,
-      pages: entry.pages ?? 1,
-      enabled: entry.enabled !== false
-    }));
   }
 
   async fetchPage(url) {
@@ -196,7 +201,6 @@ export class KworkHtmlSource {
         userAgent: this.userAgent,
         timeoutMs: this.timeoutMs,
         fetchImpl: this.fetchImpl,
-        allowedUrls: this.allowedUrls,
         texts: this.texts
       });
       this.requestCount += 1;

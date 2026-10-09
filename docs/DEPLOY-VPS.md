@@ -191,14 +191,14 @@ DATA_DIR=data
 **Как узнать chat id:** проще всего запустить бота локально и отправить `/start` — тогда
 `TELEGRAM_CHAT_ID` не нужен, бот запомнит чат. Для `poll` без приёма команд chat id обязателен.
 
-**Несколько пользователей.** `TELEGRAM_ALLOWED_USER_ID` — это владелец бота. Остальные
-подключаются сами: пишут боту `/start`, владелец подтверждает командой `/approve <id>`
-(список — `/users`). Каждый пользователь загружает **свой** профиль командой `/profile upload`
-(файл JSON), он хранится в `data/profiles/<id>.json`; общий профиль из `PROFILE_FILE` остаётся
-запасным. Пока профиля нет, задания пользователю не отправляются, а раз в сутки приходит
-напоминание. Доступ хранится в `data/telegram-state.json`, поэтому попадает в бэкап
-вместе с остальным состоянием. Автодоступ без подтверждения включается так:
-`config/default.json` → `"telegram": { "autoApprove": true }` (только для доверенного круга).
+**Несколько пользователей.** `TELEGRAM_ALLOWED_USER_ID` — это владелец бота (если не задан,
+владельцем станет первый написавший). Остальные подключаются сами: пишут боту `/start`, и
+доступ открывается сразу — подтверждение не нужно (событие логируется). Каждый пользователь
+загружает **свой** профиль командой `/profile upload` (файл JSON), он хранится в
+`data/profiles/<id>.json`; **общего/запасного профиля нет**. Пока профиля нет, задания
+пользователю не отправляются, а раз в сутки приходит напоминание. Доступ хранится в
+`data/telegram-state.json` и попадает в бэкап вместе с остальным состоянием. Чтобы закрыть
+доступ (публичное окружение): `config/default.json` → `"telegram": { "autoApprove": false }`.
 
 **Меню команд.** При запуске `bot` приложение публикует команды в Telegram (`setMyCommands`),
 поэтому они видны в интерфейсе. Тексты — `config/texts.json` → `commands.telegramMenu`,
@@ -218,8 +218,8 @@ chmod 700 /opt/kwork-watcher/app/data 2>/dev/null || true
 {
   "source": {
     "enabled": true,                       // живой опрос разрешён
-    "allowedUrls": [ /* только согласованные URL */ ],
-    "pagination": { "enabled": true, "maxPagesPerUrl": 3 },
+    "baseUrl": "https://kwork.ru",         // список заданий; категории добавляются ?c=<id>
+    "pagination": { "enabled": true, "maxPagesPerUrl": 6 },
     "pruneMissingJobs": true
   },
   "schedule": {
@@ -652,7 +652,7 @@ journalctl -u kwork-bot | grep "Восстановлено время после
 [ ] Node.js ≥ 20.6 установлен (node -v)
 [ ] Код доставлен в /opt/kwork-watcher/app (git clone или архив)
 [ ] .env создан, chmod 600, токен и user id заполнены
-[ ] config/default.json проверен: source.enabled, allowedUrls, окно, интервал
+[ ] config/default.json проверен: source.enabled, source.baseUrl, окно, интервал
 [ ] node --test — все тесты зелёные
 [ ] node src/index.js config-check --live — без ошибок
 [ ] node src/index.js plan — URL и расписание прочитаны и совпадают с согласованными

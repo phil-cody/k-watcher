@@ -2,7 +2,7 @@
   "name": "kwork-watcher-bot",
   "version": "0.1.0",
   "private": true,
-  "description": "Личный Telegram-бот: следит за новыми заданиями Kwork в разрешённых категориях и присылает оценку и черновик отклика. Не отправляет отклики и не совершает действий на Kwork.",
+  "description": "Личный Telegram-бот: следит за новыми заданиями Kwork в выбранных категориях и присылает оценку и черновик отклика. Не отправляет отклики и не совершает действий на Kwork.",
   "type": "module",
   "engines": {
     "node": ">=20.6.0"
@@ -12,9 +12,12 @@
     "bot": "node src/index.js bot",
     "poll": "node src/index.js poll",
     "dry": "node src/index.js dry-run",
+    "plan": "node src/index.js plan",
     "status": "node src/index.js status",
     "categories": "node src/index.js categories",
+    "categories:refresh": "node src/index.js categories-refresh",
     "config:check": "node src/index.js config-check",
+    "reset": "node src/index.js reset",
     "dashboard": "node src/index.js dashboard"
   },
   "dependencies": {},

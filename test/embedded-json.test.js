@@ -205,21 +205,11 @@ test('categoryLinksIdRu нормализуется и как число, и ка
   assert.deepEqual(categoryLinkIdsOf({ categoryLinksIdRu: 'нет' }), []);
 });
 
-test('фильтрация по отображению категорий не теряет данные молча', () => {
+test('разбор не фильтрует задания до анализа — все карточки проходят', () => {
   const html = fixture('listing-embedded-json.html');
   const all = parseEmbeddedJobs(html, { sourceUrl: SOURCE_URL, targetCategories: [] });
   assert.equal(all.jobs.length, 4);
   assert.equal(all.filteredOut, 0);
-
-  const filtered = parseEmbeddedJobs(html, {
-    sourceUrl: SOURCE_URL,
-    targetCategories: [{ id: 'markup-adaptation', label: 'Адаптация', kworkCategoryId: null }],
-    categoryMapping: { 38: 'markup-adaptation' },
-    filterByCategoryLinkId: true
-  });
-  assert.equal(filtered.jobs.length, 1);
-  assert.equal(filtered.filteredOut, 3);
-  assert.equal(filtered.jobs[0].id, '3264841');
 });
 
 test('подтверждённый маппинг id Kwork отбирает только целевые категории', () => {

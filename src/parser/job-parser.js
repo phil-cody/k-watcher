@@ -6,7 +6,7 @@
  * либо null + запись в missingFields. Никакой HTML не сохраняется вызывающим кодом.
  */
 
-import { parseHtml, findAll, findElement, hasClass, textOf, classesOf, documentTitle, normalizeWhitespace } from '../util/html.js';
+import { parseHtml, findAll, findElement, textOf, classesOf, documentTitle, normalizeWhitespace } from '../util/html.js';
 import { detectDomStructure, detectPageAnomaliesDetailed, extractJsonLd, jobsFromJsonLd } from './structure-detector.js';
 import { parseEmbeddedJobs, extractEmbeddedPagination } from './embedded-json-parser.js';
 import { createTexts } from '../texts/texts.js';
@@ -135,6 +135,9 @@ export function buildDedupKey({ id, url, title, budgetText }) {
   if (id) return { key: `id:${id}`, kind: 'stable-id' };
   if (url) return { key: `url:${url.split('?')[0]}`, kind: 'url' };
   const basis = [title ?? '', budgetText ?? ''].join('|').toLowerCase();
+  // Без заголовка и бюджета составной ключ невозможен: пустые карточки не должны
+  // схлопываться в одну по постоянному hash строки «|».
+  if (basis === '|') return { key: null, kind: null };
   const hash = createHash('sha1').update(basis).digest('hex').slice(0, 16);
   return { key: `composite:${hash}`, kind: 'composite-fallback' };
 }

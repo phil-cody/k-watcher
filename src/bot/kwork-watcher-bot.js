@@ -9,11 +9,10 @@
 
 import { formatInZone } from '../util/time.js';
 import { SCHEDULER_STATE } from '../scheduler/scheduler.js';
-import { validateModelSecrets, validateTelegramSecrets } from '../config/load-config.js';
 import { createHash } from 'node:crypto';
-import { parseCategoryIds, resolveCategoryInput } from '../storage/category-store.js';
-import { buildPollPlan, baseFromAllowedUrls } from '../source/poll-plan.js';
-import { createTexts } from '../texts/texts.js';
+import { resolveCategoryInput } from '../storage/category-store.js';
+import { buildPollPlan, allProjectsUrl } from '../source/poll-plan.js';
+import { createTexts, format } from '../texts/texts.js';
 
 /** Описание плана опроса — показывается пользователю перед живым запуском. */
 export function describePlan(config, { texts = null, selection = null } = {}) {
@@ -41,9 +40,8 @@ export function describePlan(config, { texts = null, selection = null } = {}) {
     lines.push(`• ${t('commands.plan.pagesSingle')}`);
   }
   // План опроса: зависит от выбранных категорий.
-  const allowed = (source.allowedUrls ?? []).filter((entry) => entry.enabled !== false);
-  const base = baseFromAllowedUrls(allowed);
-  const plan = buildPollPlan({ base, allowedUrls: allowed, selection });
+  const base = String(source.baseUrl ?? 'https://kwork.ru').replace(/\/+$/, '');
+  const plan = buildPollPlan({ base, selection });
   lines.push('');
   lines.push(
     t(plan.mode === 'categories' ? 'commands.plan.pollPlanCategories' : 'commands.plan.pollPlanAll', {
@@ -54,23 +52,8 @@ export function describePlan(config, { texts = null, selection = null } = {}) {
     const reason = t(`commands.plan.pollPlanReasons.${entry.reason}`);
     lines.push(`• ${t('commands.plan.pollPlanUrl', { url: entry.url, reason })}`);
   }
-  for (const entry of plan.skipped) {
-    lines.push(`• ${t('commands.plan.pollPlanSkipped', { url: entry.url })}`);
-  }
   lines.push('');
-  lines.push(t('commands.plan.allowedUrls'));
-  for (const entry of source.allowedUrls ?? []) {
-    const state = entry.enabled === false ? t('commands.plan.urlDisabled') : t('commands.plan.urlEnabled');
-    const label = entry.label ?? null;
-    lines.push(
-      label
-        ? `• ${t('commands.plan.urlEntry', { state, url: entry.url, label })}`
-        : `• ${t('commands.plan.urlEntryNoLabel', { state, url: entry.url })}`
-    );
-    if (entry.category?.expected) lines.push(`    ${t('commands.plan.urlExpectedCategory', { category: entry.category.expected })}`);
-    if (entry.requestedByUser) lines.push(`    ${t('commands.plan.urlConfirmation', { text: entry.requestedByUser })}`);
-  }
-  lines.push('');
+  lines.push(t('commands.plan.baseUrl', { url: allProjectsUrl(base) }));
   lines.push(t('commands.plan.categories'));
   for (const category of config.targetCategories ?? []) {
     lines.push(`• ${category.label}`);
@@ -98,19 +81,23 @@ export function describePlan(config, { texts = null, selection = null } = {}) {
 /** Текст ответа на /start. */
 export function buildStartMessage({ config, profile, schedulerState = null, texts = null }) {
   const textsObject = texts ?? createTexts({ rootDir: config?.rootDir ?? process.cwd() });
-  const t = (path, params) => textsObject.t(path, params);
+  const templates = Array.isArray(textsObject.data?.commands?.start) ? textsObject.data.commands.start : [];
   const lines = [];
-  for (const line of textsObject.lines('commands.start', {
-    headline: profile?.headline ?? '—',
-    status: schedulerState?.status ?? ''
-  })) {
-    if (line.includes('{status}') || (line.startsWith('Текущее состояние') && !schedulerState)) continue;
-    lines.push(line);
+  for (const template of templates) {
+    if (typeof template !== 'string') continue;
+    // Строку о состоянии показываем только при живом планировщике.
+    // Фильтруем по плейсхолдеру {status}, а не по русскому тексту — иначе смена
+    // формулировки в texts.json молча сломает логику.
+    if (template.includes('{status}') && !schedulerState) continue;
+    lines.push(
+      format(template, {
+        headline: profile?.headline ?? '—',
+        status: schedulerState?.status ?? ''
+      })
+    );
   }
-  if (!schedulerState) {
-    // Убираем пустую строку, оставшуюся от блока про состояние.
-    while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
-  }
+  // Убираем пустую строку, оставшуюся от блока про состояние.
+  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
   return lines.join('\n');
 }
 
@@ -698,16 +685,14 @@ export async function dispatchCommand(
         return { action: 'profile-reset', reply: null };
       }
       if (sub === 'show') {
-        const source = profileSource
-          ? t(`commands.onboarding.profileSource${profileSource === 'personal' ? 'Personal' : 'Fallback'}`)
+        const source = profileSource === 'personal'
+          ? t('commands.onboarding.profileSourcePersonal')
           : t('commands.onboarding.profileSourceNone');
         return { action: null, reply: `${source}\n\n${buildProfileMessage({ profile, config, texts: textsObject })}` };
       }
       const extra = profileSource === 'personal'
         ? t('commands.onboarding.profileSourcePersonal')
-        : profileSource === 'fallback'
-          ? t('commands.onboarding.profileSourceFallback')
-          : t('commands.onboarding.profileMissing');
+        : t('commands.onboarding.profileMissing');
       return { action: null, reply: `${buildProfileMessage({ profile, config, texts: textsObject })}\n\n${extra}` };
     }
     case 'pause':
@@ -740,13 +725,7 @@ export function preflight(config, { requireLiveSource = false } = {}) {
     if (source.permission?.status !== 'confirmed') {
       errors.push('Нет подтверждения охвата разрешением Kwork (source.permission.status).');
     }
-    const enabled = (source.allowedUrls ?? []).filter((entry) => entry.enabled !== false);
-    if (enabled.length === 0) errors.push('Список разрешённых URL пуст.');
-    for (const entry of enabled) {
-      if (entry.pagination || (entry.pages ?? 1) > 1) {
-        errors.push(`Пейджинация для ${entry.url} не подтверждена пользователем.`);
-      }
-    }
+    if (!source.baseUrl) errors.push('source.baseUrl не задан: опрос некуда направлять.');
   }
 
   const min = config.schedule?.minIntervalSeconds;
@@ -768,7 +747,6 @@ export class KworkWatcherBot {
     store,
     scheduler,
     client,
-    cycleRunner,
     logger = null,
     modelInfo = null,
     modelUsage = null,
@@ -797,7 +775,6 @@ export class KworkWatcherBot {
     this.store = store;
     this.scheduler = scheduler;
     this.client = client;
-    this.cycleRunner = cycleRunner;
     this.logger = logger;
     this.modelInfo = modelInfo;
     this.modelUsage = modelUsage;
@@ -813,7 +790,6 @@ export class KworkWatcherBot {
     this.profileUploadAttempts = new Map();
     // Часы процесса: внедряются в тестах, чтобы проверки времени были детерминированными.
     this.now = now;
-    this.lastSummary = null;
     this.stopping = false;
     this.polling = false;
   }
@@ -864,7 +840,6 @@ export class KworkWatcherBot {
       scheduler: this.scheduler,
       modelInfo: this.modelInfo,
       modelUsage: this.modelUsage,
-      lastSummary: this.lastSummary,
       telegramState: this.telegramState,
       fromUserId: message.fromId,
       fromChatId: message.chatId,
@@ -904,17 +879,14 @@ export class KworkWatcherBot {
       await this.categories.remove(message.fromId);
       this.logger?.info(this.texts.t('logs.categoriesReset'), { userId: message.fromId });
     }
-    // /profile reset — удаляем личный профиль, возвращаемся на общий.
+    // /profile reset — удаляем личный профиль. Общего профиля нет: без личного
+    // задания не приходят, поэтому напоминаем, что нужно загрузить свой.
     if (result.action === 'profile-reset') {
       const removed = this.profiles ? await this.profiles.remove(message.fromId) : false;
-      const fallbackExists = Boolean(this.profiles?.fallbackProfile);
       const text = removed
-        ? this.texts.t('commands.onboarding.profileRemoved')
+        ? `${this.texts.t('commands.onboarding.profileRemoved')}\n${this.texts.t('commands.onboarding.profileNoPersonal')}`
         : this.texts.t('commands.onboarding.profileMissing');
-      await this.reply(
-        message.chatId,
-        fallbackExists ? `${text}\n${this.texts.t('commands.onboarding.profileSourceFallback')}` : text
-      );
+      await this.reply(message.chatId, text);
       return { action: 'profile-reset', removed };
     }
     return result;
@@ -1187,9 +1159,3 @@ export class KworkWatcherBot {
   }
 }
 
-/** Сборка окружения для живого запуска с проверками перед стартом. */
-export async function createBotRuntime({ config, profile, logger, notifier = null, modelAdapter = null, store, source, parser, scheduler, fetchImpl }) {
-  const telegramValidation = validateTelegramSecrets(config.secrets);
-  const modelValidation = validateModelSecrets(config.model, config.secrets);
-  return { telegramValidation, modelValidation, notifier, modelAdapter, store, source, parser, scheduler };
-}

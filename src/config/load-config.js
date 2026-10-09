@@ -3,7 +3,7 @@
  *
  * Принципы:
  *  - секреты только из переменных окружения (или локального .env), никогда из config/*.json;
- *  - разрешённые URL и окно опроса — данные конфигурации, а не константы в коде;
+ *  - адрес источника (baseUrl) и окно опроса — данные конфигурации, а не константы в коде;
  *  - небезопасная или противоречивая конфигурация останавливает запуск, а не «чинится молча».
  */
 
@@ -20,6 +20,10 @@ export class ConfigError extends Error {
 
 const MODEL_PROVIDERS = new Set(['heuristic', 'openai-compatible', 'anthropic']);
 const ALLOWED_SOURCE_HOSTS = new Set(['kwork.ru', 'www.kwork.ru']);
+// Подтверждённый объём: только страницы списка заданий.
+const PROJECTS_PATH = '/projects';
+// Параметры списка: категория, подраздел внутри неё и номер страницы. Больше ничего.
+const ALLOWED_QUERY_PARAMS = new Set(['c', 'attr', 'page']);
 
 /** Разбор файла .env в объект (без раскрытия значений в логах). */
 export function parseEnvFile(content) {
@@ -40,51 +44,21 @@ export function parseEnvFile(content) {
 }
 
 /**
- * Является ли URL страницей объявленного URL: те же параметры плюс `page`.
- * Пример: https://kwork.ru/projects?c=38&page=2 — страница для ?c=38.
- */
-export function isDeclaredPageVariant(rawUrl, allowedUrls = []) {
-  let parsed;
-  try {
-    parsed = new URL(String(rawUrl));
-  } catch {
-    return false;
-  }
-  if (!parsed.searchParams.has('page')) return false;
-  const pageValue = Number(parsed.searchParams.get('page'));
-  if (!Number.isInteger(pageValue) || pageValue < 2) return false;
-
-  for (const declared of allowedUrls) {
-    let base;
-    try {
-      base = new URL(String(declared));
-    } catch {
-      continue;
-    }
-    if (base.origin !== parsed.origin || base.pathname !== parsed.pathname) continue;
-    const baseParams = [...base.searchParams.entries()].sort().map(([k, v]) => `${k}=${v}`);
-    const otherParams = [...parsed.searchParams.entries()]
-      .filter(([key]) => key !== 'page')
-      .sort()
-      .map(([k, v]) => `${k}=${v}`);
-    if (baseParams.join('&') === otherParams.join('&')) return true;
-  }
-  return false;
-}
-
-/**
  * Проверка URL источника.
  *
- * Разрешены только страницы списка заданий: https://kwork.ru/projects
- * (в том числе с параметром ?c=<id>, если такой точный URL перечислен в
- * source.allowedUrls, и его страницы ?page=N). Страницы отдельных заданий
- * (/projects/<id>/<slug>), API, поиск, профили и аккаунтные разделы
- * отклоняются, даже если попали в конфиг по ошибке.
+ * Разрешены ТОЛЬКО страницы списка заданий: https://kwork.ru/projects
+ * и её варианты по категории/подразделу/странице — `?c=<id>`, `?attr=<id>`,
+ * `?page=<n>=2`. Список категорий не перечисляется жёстко: он приходит из
+ * полного каталога сайта (config/categories.json), поэтому допустим любой
+ * положительный числовой id.
+ *
+ * Страницы отдельных заданий (/projects/<id>/<slug>), API, поиск, профили
+ * и аккаунтные разделы отклоняются по структуре URL, даже если попали в
+ * запрос по ошибке.
  *
  * @param {string} rawUrl проверяемый URL
- * @param {{ allowedUrls?: string[] }} [options] точный список разрешённых URL
  */
-export function validateSourceUrl(rawUrl, { allowedUrls = [] } = {}) {
+export function validateSourceUrl(rawUrl) {
   const errors = [];
   let parsed = null;
   try {
@@ -97,23 +71,48 @@ export function validateSourceUrl(rawUrl, { allowedUrls = [] } = {}) {
     errors.push(`Хост не разрешён (ожидается kwork.ru): ${parsed.hostname}`);
   }
   const path = parsed.pathname.replace(/\/+$/, '') || '/';
-  if (path !== '/projects') {
+  if (path !== PROJECTS_PATH) {
     errors.push(
-      `Путь не входит в подтверждённый объём (разрешён только список заданий /projects): ${parsed.pathname}`
+      `Путь не входит в подтверждённый объём (разрешён только список заданий ${PROJECTS_PATH}): ${parsed.pathname}`
     );
   }
-  if (parsed.search) {
-    // Query-параметры допускаются, только если это подтверждённый URL или его
-    // страница (тот же URL + параметр page). Иначе — ошибка.
-    const declared = allowedUrls.includes(String(rawUrl));
-    const pageVariant = isDeclaredPageVariant(rawUrl, allowedUrls);
-    if (!declared && !pageVariant) {
-      errors.push(
-        `Параметры запроса не подтверждены: ${parsed.search}. Разрешены только URL из source.allowedUrls и их страницы ?page=N.`
-      );
+
+  // Query-параметры: только категория, подраздел и номер страницы. Значения — целые числа.
+  const seen = new Set();
+  for (const [key, value] of parsed.searchParams.entries()) {
+    if (!ALLOWED_QUERY_PARAMS.has(key)) {
+      errors.push(`Параметр запроса не разрешён: ${key}. Разрешены только c, attr, page.`);
+      continue;
+    }
+    if (seen.has(key)) {
+      errors.push(`Параметр запроса повторяется: ${key}.`);
+      continue;
+    }
+    seen.add(key);
+    if (!/^\d+$/.test(value)) {
+      errors.push(`Значение параметра ${key} должно быть целым числом: ${value}.`);
+      continue;
+    }
+    const numeric = Number(value);
+    if (key === 'page') {
+      if (numeric < 2) errors.push(`Параметр page должен быть не меньше 2: ${value}.`);
+    } else if (numeric < 1) {
+      errors.push(`Значение параметра ${key} должно быть положительным: ${value}.`);
     }
   }
+  // Подраздел без категории бессмысленен и не входит в подтверждённый объём.
+  if (seen.has('attr') && !seen.has('c')) {
+    errors.push('Параметр attr разрешён только вместе с c (категорией).');
+  }
+
   return { ok: errors.length === 0, errors, url: parsed.toString(), path };
+}
+
+/** URL общего списка заданий из конфигурации источника. */
+export function baseProjectsUrl(config = {}) {
+  const source = config.source ?? config;
+  const base = String(source.baseUrl ?? 'https://kwork.ru').replace(/\/+$/, '');
+  return `${base}${PROJECTS_PATH}`;
 }
 
 function requireNumber(value, name, errors) {
@@ -148,27 +147,19 @@ export function validateConfig(config, { requireLiveSource = false } = {}) {
 
   const source = config.source ?? {};
   const schedule = config.schedule ?? {};
-  const allowedUrls = Array.isArray(source.allowedUrls) ? source.allowedUrls : [];
 
-  if (allowedUrls.length === 0) {
-    warnings.push('Список разрешённых URL пуст: живой опрос невозможен, доступны только локальные fixtures.');
+  // Базовый адрес источника: общий список заданий и его варианты по категориям.
+  if (!source.baseUrl) {
+    errors.push('source.baseUrl не задан: опрос некуда направлять.');
+  } else {
+    const check = validateSourceUrl(baseProjectsUrl(config));
+    if (!check.ok) errors.push(...check.errors.map((message) => `source.baseUrl: ${message}`));
   }
-  const enabledUrls = allowedUrls.filter((entry) => entry?.enabled !== false);
-  const declaredUrlStrings = allowedUrls.map((entry) => entry?.url).filter(Boolean);
-  for (const entry of enabledUrls) {
-    if (!entry?.url) {
-      errors.push('У записи allowedUrls отсутствует url');
-      continue;
-    }
-    const check = validateSourceUrl(entry.url, { allowedUrls: declaredUrlStrings });
-    if (!check.ok) errors.push(...check.errors.map((message) => `allowedUrls[${entry.id ?? entry.url}]: ${message}`));
-    // Пейджинация допустима только при явно включённом source.pagination.enabled.
-    const paginationAllowed = config.source?.pagination?.enabled === true;
-    if (!paginationAllowed && (entry.pagination === true || Number(entry.pages ?? 1) > 1)) {
-      errors.push(
-        `Пейджинация не подтверждена пользователем: allowedUrls[${entry.id ?? entry.url}].pages = ${entry.pages ?? 1}. ` +
-          'Включите source.pagination.enabled и подтвердите число страниц.'
-      );
+  // Пейджинация допустима только при явно включённом source.pagination.enabled.
+  if (source.pagination?.enabled === true) {
+    const maxPages = Number(source.pagination.maxPagesPerUrl ?? 0);
+    if (!Number.isFinite(maxPages) || maxPages < 1) {
+      errors.push('source.pagination.maxPagesPerUrl должен быть положительным числом.');
     }
   }
 
@@ -179,7 +170,6 @@ export function validateConfig(config, { requireLiveSource = false } = {}) {
     if (source.permission?.status !== 'confirmed') {
       errors.push('source.permission.status != "confirmed": нет подтверждения охвата разрешением Kwork.');
     }
-    if (enabledUrls.length === 0) errors.push('Нет ни одного включённого разрешённого URL.');
   }
 
   if (!isValidTimezone(schedule.timezone)) {
@@ -277,13 +267,16 @@ export function loadConfig({
     return undefined;
   };
 
+  // Профиль — только шаблон (config/performer-profile.json) и нужен для dry-run/шаблона.
+  // Бот анализирует по персональным профилям пользователей, поэтому общий профиль не обязателен.
   const profilePath = resolvePath(profileFile);
-  if (!existsSync(profilePath)) throw new ConfigError(`Файл профиля не найден: ${profilePath}`);
-  let profile;
-  try {
-    profile = JSON.parse(readFileSync(profilePath, 'utf8'));
-  } catch (error) {
-    throw new ConfigError(`Не удалось прочитать профиль: ${error.message}`);
+  let profile = null;
+  if (existsSync(profilePath)) {
+    try {
+      profile = JSON.parse(readFileSync(profilePath, 'utf8'));
+    } catch (error) {
+      throw new ConfigError(`Не удалось прочитать профиль: ${error.message}`);
+    }
   }
 
   const dataDir = resolvePath(pick('DATA_DIR') ?? config.app?.dataDir ?? 'data');
@@ -315,7 +308,7 @@ export function loadConfig({
   };
 
   const validation = validateConfig(resolved, { requireLiveSource });
-  const profileValidation = validateProfile(profile);
+  const profileValidation = profile ? validateProfile(profile) : { ok: true, errors: [], warnings: [] };
 
   return {
     config: resolved,
@@ -338,7 +331,8 @@ export function validateTelegramSecrets(secrets) {
     warnings.push('TELEGRAM_BOT_TOKEN не похож на токен BotFather (формат <digits>:<token>).');
   }
   if (!secrets.telegramAllowedUserId || !Number.isFinite(secrets.telegramAllowedUserId)) {
-    errors.push('TELEGRAM_ALLOWED_USER_ID не задан: бот не должен отвечать неопределённому кругу лиц.');
+    // Доступ открыт всем: владелец определяется первым написавшим, поэтому id владельца не обязателен.
+    warnings.push('TELEGRAM_ALLOWED_USER_ID не задан: владельцем станет первый написавший боту.');
   }
   return { ok: errors.length === 0, errors, warnings };
 }

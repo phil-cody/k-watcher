@@ -6,10 +6,10 @@
  *
  * Раскладка файлов:
  *   data/profiles/<userId>.json     — профиль конкретного пользователя (загружен через /profile)
- *   config/performer-profile.json   — общий профиль из репозитория (запасной вариант)
+ *   config/performer-profile.json   — шаблон для /profile template (общего профиля нет)
  *
- * Приоритет для пользователя: личный профиль → общий (если задан PROFILE_FILE и файл есть)
- * → профиля нет (пользователь пропускается, ему приходит напоминание).
+ * Пока пользователь не загрузил свой профиль, задания ему не отправляются — раз в сутки
+ * приходит напоминание. Общего/запасного профиля нет: каждый работает только со своим.
  *
  * Профиль всегда валидируется перед сохранением: битый файл не должен попадать в работу.
  */
@@ -38,9 +38,6 @@ export function checkFileType({ fileName = null, mimeType = null } = {}) {
     if (!ALLOWED_FILE_EXTENSIONS.some((extension) => lower.endsWith(extension))) {
       return { ok: false, error: `Ожидался файл ${ALLOWED_FILE_EXTENSIONS.join(' или ')}, получен «${fileName}».` };
     }
-    if (/\.(zip|rar|7z|tar|gz|exe|sh|js|html?)$/i.test(lower)) {
-      return { ok: false, error: 'Архивы, программы и страницы не принимаются — нужен JSON-профиль.' };
-    }
   }
   if (mimeType && !ALLOWED_MIME_TYPES.includes(String(mimeType).toLowerCase().split(';')[0].trim())) {
     return { ok: false, error: `Недопустимый тип файла: ${mimeType}.` };
@@ -57,8 +54,12 @@ export function isUsable(profile) {
   const skills = Array.isArray(profile.skills) ? profile.skills.length : 0;
   const portfolio = Array.isArray(profile.portfolio) ? profile.portfolio.length : 0;
   const services = Array.isArray(profile.services) ? profile.services.length : 0;
-  const hasPricing = Number.isFinite(Number(profile.pricing?.minimum_project_price)) ||
-    Number.isFinite(Number(profile.pricing?.hourly_rate));
+  const minPrice = profile.pricing?.minimum_project_price;
+  const hourlyRate = profile.pricing?.hourly_rate;
+  // Важно: Number(null) === 0, поэтому проверяем тип до приведения.
+  const hasPricing =
+    (typeof minPrice === 'number' && Number.isFinite(minPrice)) ||
+    (typeof hourlyRate === 'number' && Number.isFinite(hourlyRate));
   const hasKeywords = Array.isArray(profile.matching_preferences?.positive_keywords)
     ? profile.matching_preferences.positive_keywords.length > 0
     : false;
@@ -109,10 +110,6 @@ export class ProfileStore {
   }
 
   /** Профиль для пользователя или null, если его нет. */
-  async profileOf(userId) {
-    return (await this.get(userId)).profile;
-  }
-
   /**
    * Разбор и проверка профиля из загруженного текста.
    * Возвращает либо профиль, либо понятную причину отказа.
@@ -192,7 +189,7 @@ export class ProfileStore {
     };
   }
 
-  /** Удаление личного профиля: пользователь возвращается на запасной или на «нет профиля». */
+  /** Удаление личного профиля: после этого профиля у пользователя нет. */
   async remove(userId) {
     const path = this.pathFor(userId);
     if (!path || !existsSync(path)) return false;
@@ -257,14 +254,12 @@ export class ProfileStore {
 }
 
 /**
- * Текст профиля-шаблона для отправки пользователю.
- * Берём текущий общий профиль (или пример из репозитория), чтобы человеку было что править.
+ * Текст профиля-шаблона для отправки пользователю (команда /profile template).
+ * Это единственное назначение config/performer-profile.json.
  */
-export async function readTemplateProfile({ fallbackPath = null, samplePath = null } = {}) {
-  for (const candidate of [fallbackPath, samplePath]) {
-    if (candidate && existsSync(candidate)) {
-      return { text: await readFile(candidate, 'utf8'), path: candidate };
-    }
+export async function readTemplateProfile(samplePath = null) {
+  if (samplePath && existsSync(samplePath)) {
+    return { text: await readFile(samplePath, 'utf8'), path: samplePath };
   }
   return { text: null, path: null };
 }

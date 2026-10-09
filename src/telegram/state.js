@@ -189,12 +189,6 @@ export class TelegramState {
     return true;
   }
 
-  revokeUser(userId) {
-    const id = Number(userId);
-    this.data.approvedUsers = this.data.approvedUsers.filter((item) => item !== id);
-    return true;
-  }
-
   /** Чат пользователя, если он боту уже писал. */
   chatIdOf(userId) {
     const known = this.data.knownUsers[String(userId)];
